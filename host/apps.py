@@ -44,6 +44,7 @@ from config import (
     subprocess_no_window_kwargs,
     user_data_directories,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -283,7 +284,7 @@ def _spawn(argv: Sequence[str], *, runner: Any | None = None) -> None:
             **subprocess_no_window_kwargs(),
         )
     except (OSError, ValueError) as exc:
-        raise LaunchError(f"nie udało się uruchomić: {exc}") from exc
+        raise LaunchError(t("launch.failed", error=exc)) from exc
 
 
 def launch_application(
@@ -301,35 +302,34 @@ def launch_application(
     info = platform_info or detect_platform()
     if not has_graphical_session(info):
         raise LaunchError(
-            "na tej maszynie nie ma sesji graficznej — nie ma gdzie pokazać okna aplikacji"
+            t("launch.no_session")
         )
 
     if info.is_windows:
         if application.path is None:  # pragma: no cover - lista zawsze ma ścieżkę
-            raise LaunchError(f"nie wiem, jak uruchomić '{application.name}'")
+            raise LaunchError(t("launch.unknown", name=application.name))
         _start_file(application.path, opener=opener)
-        return f"uruchomiono {application.name} (skrót z menu Start)"
+        return t("launch.started", name=application.name, how=t("launch.how_start_menu"))
 
     if info.is_macos:
         _spawn(["open", "-a", application.name], runner=runner)
-        return f"uruchomiono {application.name} (open -a)"
+        return t("launch.started", name=application.name, how="open -a")
 
     # Linux: od najbardziej standardowego do najbardziej podstawowego.
     if application.path is not None and shutil.which("gio"):
         _spawn(["gio", "launch", str(application.path)], runner=runner)
-        return f"uruchomiono {application.name} (gio launch)"
+        return t("launch.started", name=application.name, how="gio launch")
     if application.path is not None and shutil.which("xdg-open"):
         _spawn(["xdg-open", str(application.path)], runner=runner)
-        return f"uruchomiono {application.name} (xdg-open)"
+        return t("launch.started", name=application.name, how="xdg-open")
 
     argv = desktop_exec_argv(application)
     if not argv:
         raise LaunchError(
-            f"nie wiem, jak uruchomić '{application.name}' — brak gio, xdg-open i "
-            "polecenia Exec w pliku .desktop"
+            t("launch.unknown_no_exec", name=application.name)
         )
     _spawn(argv, runner=runner)
-    return f"uruchomiono {application.name} ({argv[0]})"
+    return t("launch.started", name=application.name, how=argv[0])
 
 
 def desktop_exec_argv(application: Application) -> list[str]:
@@ -373,11 +373,11 @@ def _start_file(target: Path | str, *, opener: Any | None = None) -> None:
     """``os.startfile`` — istnieje TYLKO na Windowsie, stąd ``getattr``."""
     start = opener if opener is not None else getattr(os, "startfile", None)
     if start is None:  # pragma: no cover - inne systemy nie trafiają tutaj
-        raise LaunchError("ten system nie ma mechanizmu otwierania plików powłoką")
+        raise LaunchError(t("launch.no_opener"))
     try:
         start(str(target))
     except OSError as exc:
-        raise LaunchError(f"nie udało się otworzyć: {exc}") from exc
+        raise LaunchError(t("launch.open_failed", error=exc)) from exc
 
 
 def open_target(
@@ -396,15 +396,15 @@ def open_target(
     info = platform_info or detect_platform()
     if not has_graphical_session(info):
         raise LaunchError(
-            "na tej maszynie nie ma sesji graficznej — nie ma czym otworzyć adresu"
+            t("launch.no_session_url")
         )
 
     if info.is_windows:
         _start_file(target, opener=opener)
-        return f"otwarto '{target}' domyślnym programem systemu"
+        return t("launch.opened", target=target, how=t("launch.how_default"))
     if info.is_macos:
         _spawn(["open", target], runner=runner)
-        return f"otwarto '{target}' przez open"
+        return t("launch.opened", target=target, how="open")
 
     for command in ("xdg-open", "gio"):
         found = shutil.which(command)
@@ -412,7 +412,7 @@ def open_target(
             continue
         argv = [found, "open", target] if command == "gio" else [found, target]
         _spawn(argv, runner=runner)
-        return f"otwarto '{target}' przez {command}"
+        return t("launch.opened", target=target, how=command)
 
     # Brak xdg-utils i glib: zostaje biblioteka standardowa, która sama zna
     # kilka mechanizmów (m.in. zmienną BROWSER).
@@ -420,10 +420,9 @@ def open_target(
 
     if not webbrowser.open(target):
         raise LaunchError(
-            "nie znalazłam programu, którym otworzyć ten adres (brak xdg-open, gio i "
-            "przeglądarki w zmiennej BROWSER)"
+            t("launch.no_browser")
         )
-    return f"otwarto '{target}' przez mechanizm biblioteki standardowej"
+    return t("launch.opened", target=target, how=t("launch.how_stdlib"))
 
 
 def url_scheme(url: str) -> str:

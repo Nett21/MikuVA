@@ -31,6 +31,7 @@ from config import Settings, get_settings
 from host.http import HttpPolicy, NetworkError, fetch_json, network_available
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +139,7 @@ class _WeatherTool[ArgsT: ToolArgs](BaseTool[ArgsT]):
         )
         results = payload.get("results") if isinstance(payload, dict) else None
         if not results:
-            raise ToolError(f"nie znalazłam miejsca o nazwie '{name}'")
+            raise ToolError(t("weather.place_not_found", name=name))
         first = results[0]
         return {
             "name": str(first.get("name") or name),
@@ -169,7 +170,7 @@ class WeatherNowTool(_WeatherTool[WeatherArgs]):
         )
         current = payload.get("current") if isinstance(payload, dict) else None
         if not isinstance(current, dict):
-            raise ToolError("serwis pogodowy nie zwrócił bieżących pomiarów")
+            raise ToolError(t("weather.no_current"))
 
         temperature_unit, wind_unit = self._labels()
         code = int(current.get("weather_code") or 0)
@@ -224,7 +225,7 @@ class WeatherForecastTool(_WeatherTool[ForecastArgs]):
         )
         daily = payload.get("daily") if isinstance(payload, dict) else None
         if not isinstance(daily, dict) or not daily.get("time"):
-            raise ToolError("serwis pogodowy nie zwrócił prognozy")
+            raise ToolError(t("weather.no_forecast"))
 
         temperature_unit, wind_unit = self._labels()
         days: list[dict[str, Any]] = []

@@ -55,7 +55,7 @@ class MicrophoneError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 

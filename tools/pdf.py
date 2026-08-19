@@ -28,6 +28,7 @@ from config import Settings, get_settings
 from host.paths import PathNotAllowedError, Workspace
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ def _load_reader() -> Any:
         if reader is not None:
             return reader
     raise ToolError(
-        "brak biblioteki do czytania PDF-ów — zainstaluj pypdf (pip install pypdf)"
+        t("pdf.no_library")
     )
 
 
@@ -124,7 +125,7 @@ class _PdfTool[ArgsT: ToolArgs](BaseTool[ArgsT]):
             pages = list(getattr(reader, "pages", []))
         except Exception as exc:
             raise ToolError(
-                f"nie udało się otworzyć PDF-a '{self._workspace.label(path)}': {exc}"
+                t("pdf.open_failed", path=self._workspace.label(path), error=exc)
             ) from exc
 
         total = len(pages)
@@ -158,8 +159,7 @@ class PdfReadTool(_PdfTool[PdfReadArgs]):
         label = self._workspace.label(path)
         if not joined.strip():
             raise ToolError(
-                f"'{label}' nie zawiera tekstu do odczytu (może być skanem — wtedy "
-                "potrzebne byłoby OCR, którego asystent nie ma)"
+                t("pdf.no_text", path=label)
             )
         return ToolResult.success(
             {
@@ -170,7 +170,7 @@ class PdfReadTool(_PdfTool[PdfReadArgs]):
                 "truncated": truncated,
                 "text": joined,
             },
-            display=f"{label}: {len(texts)} z {total} stron, {len(joined)} znaków",
+            display=t("pdf.summary", path=label, pages=len(texts), total=total, chars=len(joined)),
             untrusted=True,
         )
 

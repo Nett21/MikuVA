@@ -177,11 +177,8 @@ class Database:
                 self._path.parent.mkdir(parents=True, exist_ok=True)
             except OSError as exc:
                 raise DatabaseError(
-                    f"Nie mogę utworzyć katalogu na bazę pamięci: {self._path.parent}",
-                    hint=(
-                        "wskaż inne miejsce zmienną MIKU_DATA_DIR albo wpisem "
-                        "DATABASE_PATH w .env, albo wyłącz pamięć: MEMORY_ENABLED=false"
-                    ),
+                    t("db.mkdir_failed", error=self._path.parent),
+                    hint=t("db.mkdir_hint"),
                 ) from exc
 
         try:
@@ -197,11 +194,8 @@ class Database:
             )
         except sqlite3.Error as exc:
             raise DatabaseError(
-                f"Nie mogę otworzyć bazy pamięci: {self._path} ({exc})",
-                hint=(
-                    "sprawdź prawa zapisu do katalogu, wskaż inny ścieżką DATABASE_PATH "
-                    "w .env albo wyłącz pamięć: MEMORY_ENABLED=false"
-                ),
+                t("db.open_failed", path=self._path, error=exc),
+                hint=t("db.open_hint"),
             ) from exc
 
         connection.row_factory = sqlite3.Row
@@ -252,11 +246,8 @@ class Database:
             )
         except sqlite3.Error as exc:
             raise DatabaseError(
-                f"Nie udało się przygotować schematu bazy: {exc}",
-                hint=(
-                    f"plik bazy: {self._path} — jeśli jest uszkodzony, przenieś go na bok; "
-                    "asystent założy nowy (pamięć zostanie utracona)"
-                ),
+                t("db.schema_failed", error=exc),
+                hint=t("db.schema_hint", path=self._path),
             ) from exc
         if applied:
             logger.info(
@@ -311,7 +302,7 @@ class Database:
     def connection(self) -> sqlite3.Connection:
         """Połączenie dla BIEŻĄCEGO wątku (tworzone przy pierwszym użyciu)."""
         if self._closed:
-            raise DatabaseError("Baza pamięci jest już zamknięta.")
+            raise DatabaseError(t("db.closed"))
         if self._shared is not None:
             return self._shared
         existing: sqlite3.Connection | None = getattr(self._local, "connection", None)
@@ -373,15 +364,17 @@ class Database:
         message = str(exc)
         if "locked" in message or "busy" in message:
             return DatabaseError(
-                "Baza pamięci jest zajęta przez inny proces.",
-                hint="zamknij drugą instancję asystenta albo zwiększ DATABASE_TIMEOUT_S w .env",
+                t("db.busy"),
+                hint=t("db.busy_hint"),
             )
         if "readonly" in message or "attempt to write" in message:
             return DatabaseError(
-                f"Baza pamięci jest tylko do odczytu: {self._path}",
-                hint="sprawdź prawa zapisu albo wskaż inne miejsce zmienną MIKU_DATA_DIR",
+                t("db.readonly", error=self._path),
+                hint=t("db.readonly_hint"),
             )
-        return DatabaseError(f"Błąd bazy pamięci: {message}", hint="szczegóły w logs/errors.log")
+        return DatabaseError(
+            t("db.generic_error", error=message), hint=t("db.details_in_log")
+        )
 
     # --- utrzymanie ------------------------------------------------------ #
 
@@ -1317,8 +1310,8 @@ def check_memory(context: DependencyContext) -> list[DependencyCheck]:
                 category="storage",
                 required=False,
                 ok=False,
-                detail="wyłączona ustawieniem MEMORY_ENABLED=false",
-                hint="ustaw MEMORY_ENABLED=true, aby asystent pamiętał między uruchomieniami",
+                detail=t("db.disabled"),
+                hint=t("db.disabled_hint"),
                 phase=5,
             )
         ]
@@ -1333,10 +1326,7 @@ def check_memory(context: DependencyContext) -> list[DependencyCheck]:
                 category="storage",
                 required=False,
                 ok=True,
-                detail=(
-                    "baza wyłącznie w pamięci procesu (DATABASE_PATH=:memory:) —"
-                    " nic nie przetrwa zamknięcia programu"
-                ),
+                detail=t("db.in_memory_only"),
                 phase=5,
             )
         )

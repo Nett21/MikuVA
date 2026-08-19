@@ -37,6 +37,7 @@ from host.http import HttpPolicy, NetworkError, fetch, network_available, public
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
 from tools.webtext import ContentError, FeedItem, parse_feed, split_list
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class _NewsTool[ArgsT: ToolArgs](BaseTool[ArgsT]):
         try:
             return parse_feed(response.text, limit=limit, source=source)
         except ContentError as exc:
-            raise ToolError(f"kanał {source}: {exc.message}") from exc
+            raise ToolError(t("news.feed_error", name=source, error=exc.message)) from exc
 
 
 class HeadlinesTool(_NewsTool[HeadlinesArgs]):
@@ -107,7 +108,7 @@ class HeadlinesTool(_NewsTool[HeadlinesArgs]):
     async def run(self, args: HeadlinesArgs, ctx: ToolContext) -> ToolResult:
         chosen = [args.feed.strip()] if args.feed.strip() else self.feeds
         if not chosen:
-            raise ToolError("nie skonfigurowano żadnego kanału wiadomości (NEWS_FEEDS)")
+            raise ToolError(t("news.no_feeds"))
 
         limit = min(args.limit, self._settings.news_max_items)
         per_feed = max(1, limit // max(1, len(chosen)))
@@ -139,7 +140,7 @@ class HeadlinesTool(_NewsTool[HeadlinesArgs]):
             data["problems"] = problems[:3]
         return ToolResult.success(
             data,
-            display=f"{len(items)} nagłówków — {headline}",
+            display=t("news.headlines", count=len(items), sources=headline),
             untrusted=True,
         )
 
@@ -175,7 +176,7 @@ class NewsSearchTool(_NewsTool[NewsSearchArgs]):
                 "items": items,
                 "sources": public_hosts([url]),
             },
-            display=f"'{args.query}': {len(items)} wiadomości — {headline}",
+            display=t("news.search_results", query=args.query, count=len(items), sources=headline),
             untrusted=True,
         )
 
@@ -199,7 +200,7 @@ def build_news_tools(
                     "Latest headlines from the user's configured news feeds, with titles, "
                     "sources, dates and short summaries." + hint
                 ),
-                summary="najnowsze nagłówki z kanałów RSS",
+                summary=t("spec.news_headlines"),
                 args_model=HeadlinesArgs,
                 risk=RiskLevel.MEDIUM,
                 requires_network=True,
@@ -215,7 +216,7 @@ def build_news_tools(
                     "Search recent news for a topic and return titles, sources, dates and "
                     "short summaries. Use it when the user asks what happened or what is new."
                 ),
-                summary="szukanie wiadomości na temat",
+                summary=t("spec.news_search"),
                 args_model=NewsSearchArgs,
                 risk=RiskLevel.MEDIUM,
                 requires_network=True,

@@ -26,6 +26,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Final, Protocol, TextIO, runtime_checkable
 
 from security.risk import RiskLevel, describe_risk
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -171,7 +172,7 @@ class AutoDenyBroker:
     """
 
     def __init__(self, *, reason: str = "") -> None:
-        self._reason = reason or "brak kanału potwierdzeń (praca bez interaktywnego terminala)"
+        self._reason = reason or t("confirm.no_channel")
 
     @property
     def channel(self) -> str:
@@ -226,14 +227,14 @@ class CallbackBroker:
             logger.warning("Kanał potwierdzeń zgłosił błąd: %s", exc)
             logger.debug("Szczegóły błędu kanału potwierdzeń", exc_info=True)
             return ConfirmationOutcome.deny(
-                channel=self._channel, reason=f"kanał potwierdzeń zawiódł ({exc})"
+                channel=self._channel, reason=t("confirm.channel_failed", error=exc)
             )
 
         if isinstance(answer, ConfirmationOutcome):
             return answer
         if answer is True:
             return ConfirmationOutcome.approve(channel=self._channel)
-        return ConfirmationOutcome.deny(channel=self._channel, reason="użytkownik odmówił")
+        return ConfirmationOutcome.deny(channel=self._channel, reason=t("confirm.user_refused"))
 
     async def _invoke(self, request: ConfirmationRequest) -> Any:
         result = self._callback(request)
@@ -285,7 +286,7 @@ class TerminalConfirmationBroker:
         if not self.available:
             return ConfirmationOutcome.deny(
                 channel=self.channel,
-                reason="stdin nie jest terminalem — nie ma kogo zapytać",
+                reason=t("confirm.no_terminal"),
             )
 
         for line in request.render_lines():
@@ -298,17 +299,17 @@ class TerminalConfirmationBroker:
         except (EOFError, KeyboardInterrupt):
             self._write("")
             return ConfirmationOutcome.deny(
-                channel=self.channel, reason="anulowane przez użytkownika"
+                channel=self.channel, reason=t("confirm.cancelled")
             )
         except Exception as exc:  # pragma: no cover - awaria stdin
             logger.warning("Nie udało się odczytać potwierdzenia: %s", exc)
             return ConfirmationOutcome.deny(
-                channel=self.channel, reason=f"nie udało się odczytać odpowiedzi ({exc})"
+                channel=self.channel, reason=t("confirm.read_failed", error=exc)
             )
 
         if request.is_expired():
             return ConfirmationOutcome.deny(
-                channel=self.channel, reason="żądanie straciło ważność przed odpowiedzią"
+                channel=self.channel, reason=t("confirm.expired")
             )
         return interpret_answer(answer, request, channel=self.channel)
 
@@ -326,14 +327,14 @@ def interpret_answer(
     cleaned = " ".join(str(answer or "").split()).strip().lower().rstrip(".!")
     if request.requires_phrase:
         if cleaned in CRITICAL_PHRASES:
-            return ConfirmationOutcome.approve(channel=channel, reason="pełna fraza potwierdzenia")
+            return ConfirmationOutcome.approve(channel=channel, reason=t("confirm.full_phrase"))
         return ConfirmationOutcome.deny(
             channel=channel,
-            reason=("anulowane" if cleaned else "brak wymaganej frazy potwierdzenia"),
+            reason=(t("confirm.aborted") if cleaned else t("confirm.no_phrase")),
         )
     if cleaned in _AFFIRMATIVE:
         return ConfirmationOutcome.approve(channel=channel)
-    return ConfirmationOutcome.deny(channel=channel, reason="użytkownik odmówił")
+    return ConfirmationOutcome.deny(channel=channel, reason=t("confirm.user_refused"))
 
 
 def _stdin_is_interactive() -> bool:

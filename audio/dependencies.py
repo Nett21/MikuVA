@@ -402,8 +402,11 @@ def _check_speaker(context: DependencyContext) -> DependencyCheck:
                 required=False,
                 ok=False,
                 detail=(
-                    f"nie znaleziono urządzenia pasującego do '{wanted}'; "
-                    f"dostępne: {', '.join(device.name for device in devices[:5])}"
+                    t(
+                        "deps.device_no_match",
+                        name=wanted,
+                        devices=", ".join(device.name for device in devices[:5]),
+                    )
                 ),
                 hint=t("deps.speaker.no_match_hint"),
                 phase=4,

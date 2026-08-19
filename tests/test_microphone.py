@@ -66,7 +66,7 @@ def test_nieznane_urzadzenie_z_konfiguracji_konczy_sie_wyjatkiem(
 
 
 def test_indeks_urzadzenia_w_konfiguracji_jest_odrzucany() -> None:
-    with pytest.raises(ValueError, match="fragmentem NAZWY"):
+    with pytest.raises(ValueError, match="fragment of the device NAME"):
         Settings(_env_file=None, audio_input_device="3")
 
 

@@ -1,29 +1,29 @@
 ---
-name: Zgłoszenie błędu / Bug report
-about: Coś nie działa tak, jak opisuje README
+name: Bug report
+about: Something does not work the way the README describes
 title: ''
 labels: bug
 assignees: ''
 ---
 
-## Co się dzieje
+## What happens
 
-<!-- Jedno-dwa zdania. Co zrobiłeś i co się stało zamiast tego, czego oczekiwałeś. -->
+<!-- One or two sentences. What you did, and what happened instead of what you expected. -->
 
-## Jak to powtórzyć
+## How to reproduce it
 
 1.
 2.
 3.
 
-**Czego oczekiwałem:**
-**Co się stało:**
+**What I expected:**
+**What happened:**
 
-## Środowisko
+## Environment
 
-<!-- WKLEJ WYNIK TEJ KOMENDY. To jedna linijka, która opisuje całe środowisko
-     (system, Python, pakiety, GPU, mikrofon, modele, Ollama) i oszczędza nam
-     obu rundę pytań w tę i z powrotem. -->
+<!-- PASTE THE OUTPUT OF THIS COMMAND. It is one line that describes the whole
+     environment (system, Python, packages, GPU, microphone, models, Ollama) and
+     saves us both a round of questions. -->
 
 ```
 $ python main.py --check-deps
@@ -31,24 +31,24 @@ $ python main.py --check-deps
 
 ```
 
-## Logi
+## Logs
 
-<!-- Pełne ślady wyjątków lądują w logs/errors.log, a nie na ekranie.
-     Wklej ostatnie kilkanaście linii z okolic błędu.
-     W trybie usługi: journalctl --user -u miku-assistant -n 50 -->
-
-```
-
+<!-- Full tracebacks land in logs/errors.log, not on the screen.
+     Paste the last dozen or so lines around the error.
+     In service mode: journalctl --user -u miku-assistant -n 50 -->
 
 ```
 
-## Zanim wyślesz — trzy rzeczy
 
-- [ ] Przeczytałem sekcję **Ograniczenia / Known limitations** w README.
-      Halucynacje małego modelu, pomyłki rozpoznawania mowy w hałasie,
-      pytanie o zgodę przy każdej akcji HIGH i brak działającego RVC to
-      **udokumentowane właściwości**, nie błędy.
-- [ ] Sprawdziłem, czy w tym, co wklejam, nie ma kluczy API, tokenów ani
-      ścieżek z nazwą mojego konta.
-- [ ] Problem występuje też po `python main.py --check-deps` bez błędów
-      (albo dołączam raport pokazujący, czego brakuje).
+```
+
+## Before you send — three things
+
+- [ ] I have read the **Limitations / Known limitations** section of the README.
+      Hallucinations from a small model, speech-recognition mistakes in noise,
+      being asked for consent on every HIGH action, and RVC not working are
+      **documented properties**, not bugs.
+- [ ] I have checked that what I am pasting contains no API keys, tokens or
+      paths carrying my account name.
+- [ ] The problem occurs even when `python main.py --check-deps` reports no
+      errors (or I am attaching the report showing what is missing).

@@ -226,7 +226,7 @@ def test_budzet_wywolan_konczy_petle_narzedziowa() -> None:
         assert run(router.dispatch(call(), make_context())).ok
     trzecie = run(router.dispatch(call(), make_context()))
 
-    assert not trzecie.ok and "budżet" in trzecie.result.error
+    assert not trzecie.ok and "budget" in trzecie.result.error
     assert len(tool.calls) == 2
     assert router.budget_left() == 0
 
@@ -430,7 +430,7 @@ def test_narzedzie_ktore_zwleka_jest_przerywane_limitem_czasu() -> None:
 
     outcome = run(router.dispatch(call("test.wolne"), make_context()))
 
-    assert not outcome.ok and "nie odpowiedziało" in outcome.result.error
+    assert not outcome.ok and "did not answer" in outcome.result.error
 
 
 def test_wyjatek_w_narzedziu_wraca_jako_wynik_a_nie_wysadza_rozmowy() -> None:

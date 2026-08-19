@@ -57,6 +57,7 @@ from host.processes import (
 from security.confirm import ConfirmationRequest
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -135,8 +136,11 @@ class AppLaunchTool(_GraphicalTool[AppLaunchArgs]):
         if application is None:
             available_names = [item.name for item in list_applications(limit=15)]
             raise ToolError(
-                f"nie znalazłam aplikacji '{name}'. Przykłady zainstalowanych: "
-                f"{', '.join(available_names) or 'brak'} (pełną listę da app.list)"
+                t(
+                    "app.not_found",
+                    name=name,
+                    examples=", ".join(available_names) or t("common.none"),
+                )
             )
         return application
 
@@ -260,7 +264,7 @@ class ProcessListTool(BaseTool[ProcessListArgs]):
                 "count": len(processes),
                 "processes": [item.to_dict() for item in processes],
             },
-            display=f"{len(processes)} procesów; największe: {top}",
+            display=t("app.process_summary", count=len(processes), largest=top),
         )
 
 
@@ -381,7 +385,7 @@ def build_launcher_tools(
                     "Open a web address in the user's default browser. Only http, https and "
                     "mailto schemes are allowed by default."
                 ),
-                summary="otwarcie adresu w przeglądarce",
+                summary=t("spec.open_url"),
                 args_model=OpenUrlArgs,
                 risk=RiskLevel.MEDIUM,
                 requires_network=True,
@@ -399,7 +403,7 @@ def build_launcher_tools(
                     "Open a file from an allowed directory with the program the system "
                     "associates with it."
                 ),
-                summary="otwarcie pliku programem domyślnym",
+                summary=t("spec.open_path"),
                 args_model=OpenPathArgs,
                 risk=RiskLevel.MEDIUM,
                 timeout_s=15.0,
@@ -416,7 +420,7 @@ def build_launcher_tools(
                     "List running processes with their PID, owner and memory usage. "
                     "Read-only."
                 ),
-                summary="lista procesów (tylko odczyt)",
+                summary=t("spec.proc_list"),
                 args_model=ProcessListArgs,
                 risk=RiskLevel.SAFE,
                 timeout_s=15.0,
@@ -430,7 +434,7 @@ def build_launcher_tools(
                     "owned by the current user; system processes are refused. Requires the "
                     "user's confirmation."
                 ),
-                summary="zamknięcie programu (wymaga zgody)",
+                summary=t("spec.proc_kill"),
                 args_model=ProcessKillArgs,
                 risk=RiskLevel.HIGH,
                 timeout_s=20.0,

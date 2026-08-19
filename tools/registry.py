@@ -21,6 +21,7 @@ from config import Settings, get_settings
 from security.policy import SecurityPolicy
 from security.risk import describe_risk
 from tools.base import Tool
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +45,10 @@ class ToolRegistry:
         name = tool.spec.name
         if not NAME_PATTERN.match(name):
             raise ValueError(
-                f"nazwa narzędzia '{name}' musi mieć postać obszar.czynność (małymi literami)"
+                t("reg.bad_tool_name", name=name)
             )
         if name in self._tools:
-            raise ValueError(f"narzędzie '{name}' jest już zarejestrowane")
+            raise ValueError(t("reg.duplicate_tool", name=name))
         self._tools[name] = tool
         logger.debug("Zarejestrowano narzędzie %s (%s)", name, tool.spec.risk.value)
         return tool

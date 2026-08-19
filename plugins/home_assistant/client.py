@@ -37,6 +37,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from config import Settings, get_settings
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +108,8 @@ def normalize_base_url(raw: str) -> str:
     parts = urlsplit(text)
     if not parts.hostname:
         raise HomeAssistantError(
-            f"adres {raw!r} nie wygląda na adres Home Assistanta",
-            hint="poprawny przykład: http://homeassistant.local:8123",
+            t("ha.bad_url", url=repr(raw)),
+            hint=t("ha.bad_url_hint"),
         )
     path = parts.path.rstrip("/")
     if path.endswith("/api"):
@@ -201,13 +202,13 @@ class HomeAssistantClient:
             )
         except httpx.TimeoutException as exc:
             raise HomeAssistantError(
-                f"Home Assistant nie odpowiedział w ciągu {self._config.timeout_s:.0f} s",
-                hint="sprawdź, czy serwer działa i czy adres jest poprawny",
+                t("ha.timeout", seconds=f"{self._config.timeout_s:.0f}"),
+                hint=t("ha.timeout_hint"),
             ) from exc
         except httpx.HTTPError as exc:
             raise HomeAssistantError(
-                f"nie mogę połączyć się z Home Assistantem ({redact(str(exc))})",
-                hint=f"sprawdź adres {self._config.base_url} i czy serwer jest w tej sieci",
+                t("ha.connect_failed", error=redact(str(exc))),
+                hint=t("ha.connect_hint", url=self._config.base_url),
             ) from exc
         finally:
             if owns:
@@ -219,26 +220,26 @@ class HomeAssistantClient:
         status = response.status_code
         if status in (401, 403):
             raise HomeAssistantError(
-                "Home Assistant odrzucił token",
-                hint="wygeneruj nowy long-lived access token i wpisz go do HOME_ASSISTANT_TOKEN",
+                t("ha.bad_token"),
+                hint=t("ha.bad_token_hint"),
             )
         if status == 404:
             raise HomeAssistantError(
-                "Home Assistant nie zna takiej encji ani usługi",
-                hint="sprawdź identyfikator (ha.list pokaże dostępne encje)",
+                t("ha.not_found"),
+                hint=t("ha.not_found_hint"),
             )
         if status >= 500:
             raise HomeAssistantError(
-                f"Home Assistant zgłosił błąd serwera ({status})",
-                hint="zajrzyj do logów Home Assistanta",
+                t("ha.server_error", status=status),
+                hint=t("ha.server_error_hint"),
             )
         if status >= 400:
-            raise HomeAssistantError(f"Home Assistant odrzucił żądanie ({status})")
+            raise HomeAssistantError(t("ha.rejected", status=status))
 
         if len(response.content) > MAX_RESPONSE_BYTES:
             raise HomeAssistantError(
-                "odpowiedź Home Assistanta jest za duża, żeby ją przetworzyć",
-                hint="zawęź zapytanie (np. podaj domenę w ha.list)",
+                t("ha.too_large"),
+                hint=t("ha.too_large_hint"),
             )
         if not response.content:
             return None
@@ -246,8 +247,8 @@ class HomeAssistantClient:
             return response.json()
         except ValueError as exc:
             raise HomeAssistantError(
-                "Home Assistant zwrócił odpowiedź, której nie umiem odczytać",
-                hint="czy pod tym adresem na pewno stoi Home Assistant?",
+                t("ha.bad_response"),
+                hint=t("ha.bad_response_hint"),
             ) from exc
 
     # --- operacje ---------------------------------------------------------- #
@@ -262,13 +263,13 @@ class HomeAssistantClient:
     async def state(self, entity_id: str) -> EntityState:
         payload = await self._request("GET", f"/states/{entity_id}")
         if not isinstance(payload, dict):
-            raise HomeAssistantError(f"nieoczekiwana odpowiedź dla encji {entity_id}")
+            raise HomeAssistantError(t("ha.unexpected_entity", entity=entity_id))
         return _entity_from_payload(payload)
 
     async def states(self, *, domain: str = "", limit: int | None = None) -> list[EntityState]:
         payload = await self._request("GET", "/states")
         if not isinstance(payload, list):
-            raise HomeAssistantError("nieoczekiwana odpowiedź na listę encji")
+            raise HomeAssistantError(t("ha.unexpected_list"))
 
         entities = [_entity_from_payload(item) for item in payload if isinstance(item, dict)]
         wanted = domain.strip().lower()

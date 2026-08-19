@@ -46,6 +46,7 @@ from config import (
     Settings,
     get_settings,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -234,8 +235,7 @@ def check_url(url: str, policy: HttpPolicy | None = None) -> str:
         # zanim spróbujemy cokolwiek z tego zrobić. Dopisanie „https://" do
         # takiego zapisu dałoby adres bez sensu i błąd nie na temat.
         raise UrlRefusedError(
-            f"schemat '{declared.group(1).lower()}' nie jest obsługiwany — "
-            "wolno tylko http i https"
+            t("net.bad_scheme", scheme=declared.group(1).lower())
         )
     if "://" not in raw:
         # Model często podaje „example.org/artykuł" — domyślamy się https, ale
@@ -248,17 +248,17 @@ def check_url(url: str, policy: HttpPolicy | None = None) -> str:
         port = parts.port
     except ValueError as exc:
         # ``parts.port`` rzuca dopiero przy odczycie, gdy port nie jest liczbą.
-        raise UrlRefusedError(f"adres '{redact(raw)}' jest nieprawidłowy") from exc
+        raise UrlRefusedError(t("net.bad_url", url=redact(raw))) from exc
 
     if scheme not in ALLOWED_SCHEMES:
         raise UrlRefusedError(
-            f"schemat '{scheme}' nie jest obsługiwany — wolno tylko http i https"
+            t("net.bad_scheme", scheme=scheme)
         )
     host = (parts.hostname or "").strip()
     if not host:
-        raise UrlRefusedError(f"adres '{redact(raw)}' nie ma nazwy hosta")
+        raise UrlRefusedError(t("net.no_hostname", url=redact(raw)))
     if parts.username or parts.password:
-        raise UrlRefusedError("adres z loginem i hasłem nie jest obsługiwany")
+        raise UrlRefusedError(t("net.credentials_in_url"))
 
     _check_host(host, active)
     _check_port(port)
@@ -271,7 +271,7 @@ def _check_port(port: int | None) -> None:
         return
     if port in (22, 23, 25, 445, 465, 587, 3306, 5432, 6379, 11211, 27017):
         raise UrlRefusedError(
-            f"port {port} nie jest portem WWW — nie łączę się z usługami innego rodzaju"
+            t("net.bad_port", port=port)
         )
 
 
@@ -288,8 +288,7 @@ def _check_host(host: str, policy: HttpPolicy) -> None:
     lowered = host.lower().rstrip(".")
     if lowered in ("localhost",) or lowered.endswith((".localhost", ".local", ".internal")):
         raise UrlRefusedError(
-            f"'{host}' to adres lokalny — narzędzia sieciowe nie łączą się z tą maszyną "
-            "ani z siecią lokalną"
+            t("net.local_address", host=host)
         )
 
     literal = _as_ip(lowered)
@@ -298,7 +297,7 @@ def _check_host(host: str, policy: HttpPolicy) -> None:
         return
 
     if not all(_HOST_LABEL.match(label) for label in lowered.split(".") if label):
-        raise UrlRefusedError(f"'{host}' nie wygląda na poprawną nazwę hosta")
+        raise UrlRefusedError(t("net.bad_hostname", host=host))
 
     for address in _resolve(lowered):
         _reject_private_ip(address, host)
@@ -325,8 +324,7 @@ def _reject_private_ip(
         or address.is_unspecified
     ):
         raise UrlRefusedError(
-            f"'{host}' wskazuje na adres {address}, który nie jest publicznym adresem "
-            "internetowym (sieć lokalna, ta maszyna albo metadane usługi chmurowej)"
+            t("net.private_address", host=host, address=address)
         )
 
 
@@ -336,8 +334,8 @@ def _resolve(host: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
         infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
     except socket.gaierror as exc:
         raise NetworkError(
-            f"nie udało się rozwiązać nazwy '{host}'",
-            hint="sprawdź połączenie z internetem albo poprawność adresu",
+            t("net.dns_failed", host=host),
+            hint=t("net.dns_hint"),
         ) from exc
     addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
     for info in infos:
@@ -375,8 +373,8 @@ class HttpResponse:
             return json.loads(self.text)
         except ValueError as exc:
             raise NetworkError(
-                f"odpowiedź z {redact_url(self.url)} nie jest poprawnym JSON-em",
-                hint="serwer mógł zwrócić stronę błędu zamiast danych",
+                t("net.bad_json", host=redact_url(self.url)),
+                hint=t("net.bad_json_hint"),
             ) from exc
 
 
@@ -395,8 +393,8 @@ def build_headers(policy: HttpPolicy, *, accept: str = "") -> dict[str, str]:
 def _ensure_online(policy: HttpPolicy) -> None:
     if policy.offline:
         raise NetworkError(
-            "asystent pracuje w trybie offline, więc nie sięga do internetu",
-            hint="ustaw OFFLINE_MODE=off, jeśli chcesz pozwolić na dostęp do sieci",
+            t("net.offline"),
+            hint=t("net.offline_hint"),
             offline=True,
         )
 
@@ -472,15 +470,15 @@ async def _follow(
             response = await http.get(current, params=current_params or None, headers=headers)
         except httpx.TimeoutException as exc:
             raise NetworkError(
-                f"serwer {redact_url(current)} nie odpowiedział w {policy.timeout_s:.0f} s",
-                hint="spróbuj ponownie albo sprawdź połączenie",
+                t("net.timeout", host=redact_url(current), seconds=f"{policy.timeout_s:.0f}"),
+                hint=t("net.timeout_hint"),
             ) from exc
         except httpx.TooManyRedirects as exc:  # pragma: no cover - obsługujemy ręcznie
-            raise NetworkError("zbyt wiele przekierowań") from exc
+            raise NetworkError(t("net.too_many_redirects")) from exc
         except httpx.HTTPError as exc:
             raise NetworkError(
-                f"nie udało się połączyć z {redact_url(current)}",
-                hint="sprawdź połączenie z internetem",
+                t("net.connect_failed", host=redact_url(current)),
+                hint=t("net.connect_hint"),
             ) from exc
 
         if response.status_code in (301, 302, 303, 307, 308):
@@ -495,8 +493,8 @@ async def _follow(
         return _read_response(response, policy, require_textual=require_textual)
 
     raise NetworkError(
-        f"przekroczono limit {policy.max_redirects} przekierowań",
-        hint="strona przekierowuje w kółko albo prosi o zgodę na ciasteczka",
+        t("net.redirect_limit", count=policy.max_redirects),
+        hint=t("net.redirect_loop"),
     )
 
 
@@ -507,15 +505,19 @@ def _read_response(
     content_type = str(response.headers.get("content-type", "")).split(";")[0].strip().lower()
     if require_textual and content_type and not content_type.startswith(TEXTUAL_CONTENT):
         raise NetworkError(
-            f"treść typu '{content_type}' nie jest tekstem — nie pobieram jej",
-            hint="to narzędzie czyta strony i dane tekstowe, nie pliki binarne",
+            t("net.not_text", content_type=content_type),
+            hint=t("net.not_text_hint"),
         )
 
     declared = response.headers.get("content-length")
     if declared and declared.isdigit() and int(declared) > policy.max_bytes:
         raise NetworkError(
-            f"zasób ma {int(declared) // 1000} kB, a limit to {policy.max_bytes // 1000} kB",
-            hint="podaj adres konkretnej podstrony zamiast całego archiwum",
+            t(
+                "net.too_large",
+                size=int(declared) // 1000,
+                limit=policy.max_bytes // 1000,
+            ),
+            hint=t("net.too_large_hint"),
         )
 
     raw = response.content[: policy.max_bytes]
@@ -524,7 +526,11 @@ def _read_response(
 
     if response.status_code >= 400:
         raise NetworkError(
-            f"serwer {redact_url(str(response.url))} odpowiedział kodem {response.status_code}",
+            t(
+                "net.http_status",
+                host=redact_url(str(response.url)),
+                status=response.status_code,
+            ),
             hint=_status_hint(response.status_code),
         )
 
@@ -604,10 +610,7 @@ def network_available(settings: Settings | None = None) -> tuple[bool, str]:
     if not active.web_enabled:
         return False, "narzędzia sieciowe są wyłączone (WEB_ENABLED=false)"
     if hard_offline(active):
-        return False, (
-            "asystent pracuje w trybie offline (OFFLINE_MODE=on) — narzędzia sieciowe "
-            "są wyłączone; wszystko lokalne działa dalej"
-        )
+        return False, t("net.offline_tools_off")
     return True, ""
 
 

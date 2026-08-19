@@ -42,6 +42,7 @@ from tools.base import (
     ToolError,
     ToolResult,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ class ToolSandbox:
             logger.warning("Narzędzie %s przekroczyło %.1f s", tool.spec.name, timeout)
             return (
                 ToolResult.failure(
-                    f"narzędzie {tool.spec.name} nie odpowiedziało w {timeout:.0f} s"
+                    t("sandbox.timeout", tool=tool.spec.name, seconds=f"{timeout:.0f}")
                 ),
                 elapsed,
             )
@@ -134,14 +135,14 @@ class ToolSandbox:
         except Exception as exc:
             logger.exception("Narzędzie %s zawiodło", tool.spec.name)
             return (
-                ToolResult.failure(f"narzędzie {tool.spec.name} zawiodło: {exc}"),
+                ToolResult.failure(t("sandbox.failed", tool=tool.spec.name, error=exc)),
                 self._elapsed_ms(started),
             )
 
         elapsed = self._elapsed_ms(started)
         if not isinstance(result, ToolResult):  # pragma: no cover - błąd autora narzędzia
             logger.error("Narzędzie %s zwróciło %r zamiast ToolResult", tool.spec.name, result)
-            return ToolResult.failure("narzędzie zwróciło wynik w nieznanym formacie"), elapsed
+            return ToolResult.failure(t("sandbox.bad_result")), elapsed
         return self._clean(result, language=ctx.language), elapsed
 
     async def preview(self, tool: Tool[Any], args: BaseModel, ctx: ToolContext) -> str:

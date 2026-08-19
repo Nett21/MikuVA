@@ -1,23 +1,23 @@
-# Jak współtworzyć
+# Contributing
 
-Dzięki, że chcesz coś dołożyć. Ten dokument opisuje dwie rzeczy, które robi się
-tu najczęściej — **nowe narzędzie** i **nowy plugin** — oraz zasady, których
-trzyma się reszta kodu.
+Thanks for wanting to add something. This document covers the two things that
+are done here most often — **a new tool** and **a new plugin** — plus the rules
+the rest of the code follows.
 
-Wszystko poniżej da się sprawdzić przed wysłaniem zmiany:
+Everything below can be checked before you send a change:
 
 ```bash
 pip install -r requirements-dev.txt
-pytest          # ~1300 testów, ~25 s, bez mikrofonu i GPU
+pytest          # ~1350 tests, ~25 s, no microphone and no GPU needed
 ruff check .
 mypy .
 ```
 
 ---
 
-## Zanim zaczniesz: jak to jest poskładane
+## Before you start: how this is put together
 
-Zależności idą **w jedną stronę**:
+Dependencies run **one way**:
 
 ```
 config.py  ──►  audio/   host/   security/
@@ -29,234 +29,243 @@ config.py  ──►  audio/   host/   security/
                     gui/  main.py
 ```
 
-`config.py` nie wie o niczym innym. `audio/` nie wie o `brain/`. `tools/` nie
-wie o modelu językowym. Dzięki temu każdą warstwę da się przetestować atrapami —
-i dlatego cały zestaw testów przechodzi na maszynie bez mikrofonu, bez GPU
-i bez działającej Ollamy.
+`config.py` knows about nothing else. `audio/` does not know about `brain/`.
+`tools/` does not know about the language model. That is what makes every layer
+testable with fakes — and why the whole suite passes on a machine with no
+microphone, no GPU and no running Ollama.
 
-**Jeśli Twoja zmiana wymaga importu „w drugą stronę", prawie na pewno trafiła
-w złą warstwę.** Napisz o tym w PR-ze zamiast obchodzić to importem lokalnym.
+**If your change needs an import going the other way, it almost certainly landed
+in the wrong layer.** Say so in the PR rather than working around it with a
+local import.
 
 ---
 
-## Dodanie nowego narzędzia
+## Adding a new tool
 
-Narzędzie to jedyna droga od modelu do jakiegokolwiek działania. Model **nie
-wykonuje kodu** — może wyłącznie poprosić o wywołanie czegoś, co ktoś wcześniej
-napisał w Pythonie, a router sprawdza to zanim cokolwiek się stanie:
+A tool is the only route from the model to any action at all. The model **does
+not execute code** — it can only ask for something written in Python to be
+called, and the router checks that before anything happens:
 
 ```
-model prosi → router: czy takie narzędzie istnieje i jest włączone?
-            → pydantic: czy argumenty mają właściwe typy i zakresy?
-            → polityka: jakie to ryzyko?
-            → [pytanie do CZŁOWIEKA, gdy HIGH albo CRITICAL]
-            → dopiero teraz kod coś robi
-            → wynik wraca do modelu jako tekst
+model asks → router: does this tool exist and is it enabled?
+           → pydantic: do the arguments have the right types and ranges?
+           → policy: what risk is this?
+           → [a question to a HUMAN, when HIGH or CRITICAL]
+           → only now does the code do anything
+           → the result goes back to the model as text
 ```
 
-### 1. Model argumentów
+### 1. The argument model
 
 ```python
 from pydantic import Field
 from tools.base import ToolArgs
 
-class PogodaArgs(ToolArgs):
-    miasto: str = Field(min_length=1, max_length=100)
-    dni: int = Field(default=1, ge=1, le=7)
+class WeatherArgs(ToolArgs):
+    city: str = Field(min_length=1, max_length=100)
+    days: int = Field(default=1, ge=1, le=7)
 ```
 
-Limity nie są ozdobą: argumenty przychodzą **od modelu językowego**, który
-potrafi wysłać pustą nazwę, liczbę ujemną albo łańcuch na 40 kB. Walidacja jest
-pierwszą linią obrony i ma być ciasna.
+The limits are not decoration: the arguments come **from a language model**,
+which is perfectly capable of sending an empty name, a negative number, or a
+40 kB string. Validation is the first line of defence and should be tight.
 
-### 2. Ciało narzędzia
+### 2. The body of the tool
 
 ```python
 from tools.base import BaseTool, ToolContext, ToolResult
 
-class PogodaTool(BaseTool[PogodaArgs]):
-    async def run(self, args: PogodaArgs, ctx: ToolContext) -> ToolResult:
+class WeatherTool(BaseTool[WeatherArgs]):
+    async def run(self, args: WeatherArgs, ctx: ToolContext) -> ToolResult:
         if ctx.dry_run:
             return ToolResult.success(
-                {"podglad": f"sprawdziłbym pogodę dla {args.miasto}"},
-                display=f"(próbnie) pogoda dla {args.miasto}",
+                {"preview": f"I would check the weather for {args.city}"},
+                display=f"(dry run) weather for {args.city}",
             )
         ...
-        return ToolResult.success({"temperatura": 12}, display="12 °C, pochmurno")
+        return ToolResult.success({"temperature": 12}, display="12 °C, cloudy")
 ```
 
-* `run` jest **asynchroniczne**, ale nie może blokować pętli zdarzeń. Pracę
-  synchroniczną (dysk, `subprocess`) oddaj do `asyncio.to_thread`.
-* Błąd zwracaj jako `ToolResult.failure(...)`, nie jako wyjątek. Wyjątek
-  zobaczy tylko log; `failure` wróci do modelu, który może spróbować inaczej.
-* `display` czyta CZŁOWIEK, `data` czyta MODEL. To nie to samo.
+* `run` is **async**, but it must not block the event loop. Hand synchronous
+  work (disk, `subprocess`) to `asyncio.to_thread`.
+* Return errors as `ToolResult.failure(...)`, not as exceptions. An exception is
+  seen only by the log; a `failure` goes back to the model, which can then try
+  something else.
+* `display` is read by a HUMAN, `data` is read by the MODEL. They are not the
+  same thing.
 
-### 3. Deklaracja
+### 3. The declaration
 
 ```python
 from security.risk import RiskLevel
 from tools.base import ToolSpec
 
-PogodaTool(ToolSpec(
-    name="weather.forecast",        # obszar.czynność, małymi literami
+WeatherTool(ToolSpec(
+    name="weather.forecast",        # area.action, lowercase
     description="Weather forecast for the next few days for a place.",
-    args_model=PogodaArgs,
+    args_model=WeatherArgs,
     risk=RiskLevel.MEDIUM,
 ))
 ```
 
-**`description` czyta model — pisz je po angielsku i konkretnie.** To jedyna
-podstawa, na której model decyduje, kiedy narzędzia użyć. Zły opis daje
-narzędzie, którego model nigdy nie zawoła albo woła zawsze.
+**`description` is read by the model — write it in English and concretely.** It
+is the only basis on which the model decides when to use the tool. A bad
+description gives you a tool the model never calls, or calls always.
 
-### 4. Poziom ryzyka — cztery, bez „to zależy"
+### 4. Risk level — four of them, no "it depends"
 
-| Poziom | Znaczenie | Zachowanie |
+| Level | Meaning | Behaviour |
 |---|---|---|
-| `SAFE` | tylko odczyt, nic nie zmienia | wykonuje się bez pytania |
-| `MEDIUM` | zmienia coś **odwracalnego** | wykonuje się bez pytania |
-| `HIGH` | skutków nie da się cofnąć | **zawsze pyta użytkownika** |
-| `CRITICAL` | może zepsuć system | domyślnie **zablokowane** |
+| `SAFE` | read only, changes nothing | runs without asking |
+| `MEDIUM` | changes something **reversible** | runs without asking |
+| `HIGH` | the consequences cannot be undone | **always asks the user** |
+| `CRITICAL` | can break the system | **blocked** by default |
 
-Ryzyko wolno **podnieść** po zajrzeniu w argumenty, nigdy obniżyć:
+The risk may be **raised** after inspecting the arguments, never lowered:
 
 ```python
-def dynamic_risk(self, args: UsunArgs) -> RiskLevel:
-    # Jeden plik to HIGH; całe drzewo katalogów to już inna rozmowa.
+def dynamic_risk(self, args: DeleteArgs) -> RiskLevel:
+    # One file is HIGH; a whole directory tree is a different conversation.
     return RiskLevel.CRITICAL if args.recursive else RiskLevel.HIGH
 ```
 
-Przy wątpliwości wybierz wyżej. Domyślne ryzyko w `BaseTool` to `CRITICAL`
-(czyli zablokowane) — to nie złośliwość, tylko wybór strony, po której ma być
-błąd.
+When in doubt, pick higher. The default risk in `BaseTool` is `CRITICAL` (that
+is, blocked) — not out of spite, but as a choice of which side the error should
+fall on.
 
-### 5. Pytanie o zgodę buduje NARZĘDZIE, nie model
+### 5. The consent prompt is composed by the TOOL, not the model
 
 ```python
 def confirmation(self, args, *, language="en") -> ConfirmationRequest | None:
     return ConfirmationRequest.build(
         tool=self.spec.name,
         risk=RiskLevel.HIGH,
-        summary=f"usunąć plik {args.path}",
-        details=[f"rozmiar: {rozmiar} B", "tego nie da się cofnąć"],
+        summary=f"delete the file {args.path}",
+        details=[f"size: {size} B", "this cannot be undone"],
         language=language,
     )
 ```
 
-Gdyby treść pytania układał model, mógłby napisać „drobna operacja porządkowa"
-i skłonić do zgody na coś innego, niż się dzieje. Dlatego nie układa.
+If the model composed the prompt, it could write "a small tidy-up operation" and
+obtain consent for something other than what happens. So it does not compose it.
 
-### 6. Dostępność na tej maszynie
+### 6. Availability on this machine
 
 ```python
 def available(self) -> tuple[bool, str]:
     if shutil.which("pdftotext") is None:
-        return False, "brak programu pdftotext (pakiet poppler-utils)"
+        return False, "the pdftotext program is missing (package poppler-utils)"
     return True, ""
 ```
 
-**Nie zakładaj, że coś jest zainstalowane.** Narzędzie niedostępne jest
-niewidoczne dla modelu i pokazuje powód w `--check-deps` — zamiast wywalać się
-przy pierwszym wywołaniu.
+**Do not assume anything is installed.** A tool that is unavailable is invisible
+to the model and shows the reason in `--check-deps` — rather than blowing up on
+the first call.
 
-### 7. Rejestracja i testy
+### 7. Registration and tests
 
-Dopisz narzędzie w `tools/registry.py` (odpowiednia grupa). Potem test:
+Register the tool in `tools/registry.py` (the appropriate group). Then a test:
 
 ```python
-async def test_pogoda_zwraca_temperature(settings):
-    tool = PogodaTool(SPEC)
-    wynik = await tool.run(PogodaArgs(miasto="Kraków"), ToolContext(settings=settings))
-    assert wynik.ok
+async def test_weather_returns_a_temperature(settings):
+    tool = WeatherTool(SPEC)
+    result = await tool.run(WeatherArgs(city="Kraków"), ToolContext(settings=settings))
+    assert result.ok
 ```
 
-Minimum, którego oczekujemy od nowego narzędzia:
+The minimum we expect from a new tool:
 
-- [ ] przypadek udany,
-- [ ] odrzucenie złych argumentów (walidacja robi swoje),
-- [ ] `available()` mówi prawdę, gdy zależności brakuje,
-- [ ] `dry_run` nie robi nic w świecie,
-- [ ] przy ryzyku ≥ HIGH: odmowa użytkownika **naprawdę** wstrzymuje akcję.
+- [ ] the successful case,
+- [ ] rejection of bad arguments (validation doing its job),
+- [ ] `available()` tells the truth when a dependency is missing,
+- [ ] `dry_run` does nothing to the world,
+- [ ] at risk ≥ HIGH: a refusal by the user **actually** stops the action.
 
-**Bez prawdziwej sieci, dysku poza `tmp_path` i bez sprzętu.** Wzory atrap są
-w `tests/conftest.py`.
+**Without real network access, without disk outside `tmp_path`, and without
+hardware.** Patterns for the fakes are in `tests/conftest.py`.
 
 ---
 
-## Dodanie pluginu
+## Adding a plugin
 
-Plugin to katalog w `plugins/`. Jego narzędzia przechodzą przez **ten sam**
-router, walidację, budżet tury, politykę ryzyka i audyt. Nie ma dla nich furtki.
+A plugin is a directory in `plugins/`. Its tools go through **the same** router,
+validation, per-turn budget, risk policy and audit. There is no side door for
+them.
 
 ```bash
-cp -r plugins/przyklad plugins/moj_plugin
+cp -r plugins/przyklad plugins/my_plugin
 ```
 
-Trzy elementy: wizytówka (`PluginInfo`), narzędzia (jak wyżej) i obiekt `PLUGIN`,
-który znajdzie menedżer. Pełny, skomentowany szkielet jest w
-[`plugins/przyklad/__init__.py`](plugins/przyklad/__init__.py); działający
-przykład ze stanem w bazie — w `plugins/reminders/`.
+Three elements: the business card (`PluginInfo`), the tools (as above) and a
+`PLUGIN` object for the manager to find. A full, commented skeleton is in
+[`plugins/przyklad/__init__.py`](plugins/przyklad/__init__.py); a working example
+with state in the database is in `plugins/reminders/`.
 
-Czego plugin **nie może**:
+What a plugin **cannot** do:
 
-* obejść polityki bezpieczeństwa — jego narzędzia idą tą samą drogą,
-* sięgnąć do systemu inaczej niż przez `host/` i `security/`,
-* zablokować startu asystenta — plugin rzucający wyjątkiem przy ładowaniu jest
-  pomijany z wpisem w logu,
-* trzymać stanu w plikach obok kodu — od tego jest baza z `PluginContext`.
+* bypass the security policy — its tools travel the same road,
+* reach the system other than through `host/` and `security/`,
+* block the assistant from starting — a plugin that raises while loading is
+  skipped, with an entry in the log,
+* keep state in files next to the code — the database from `PluginContext` is
+  there for that.
 
-> **Menedżer pluginów nie jest piaskownicą.** Moduł jest importowany
-> i wykonywany z pełnymi uprawnieniami konta. To ograniczenie architektury,
-> opisane wprost w sekcji Ograniczeń w README — nie zgłaszaj go jako błędu.
-
----
-
-## Zasady, których trzyma się reszta kodu
-
-**Komentarz odpowiada „dlaczego", nie „co".** Kod mówi, co robi. Komentarz jest
-od tego, żeby następna osoba nie „poprawiła" czegoś, co wygląda dziwnie
-z powodu, o którym nie wie. Jeśli coś jest zrobione inaczej, niż podpowiada
-odruch — napisz dlaczego, najlepiej z liczbą albo objawem, który to wymusił.
-
-**Nowy tekst dla użytkownika idzie do `i18n.py`**, nie do `print()`. Katalog
-angielski (`_EN`) jest wzorcem; brak tłumaczenia pokazuje tekst angielski, nigdy
-pusty napis. Test pilnuje, żeby oba katalogi miały ten sam zestaw kluczy.
-
-**Nowe ustawienie to trzy miejsca naraz**: pole w `Settings` (`config.py`), wpis
-w `.env.example` z komentarzem po co ono jest, i test. Ustawienie bez wpisu
-w `.env.example` jest praktycznie nie do znalezienia — pilnuje tego
-`tests/test_docs.py`.
-
-**Nic nie zakłada konkretnej maszyny.** Żadnych ścieżek bezwzględnych, nazw
-użytkownika, założeń o systemie plików ani o obecności sprzętu. O system pyta
-`config.detect_platform()`, o ścieżki — funkcje z `config.py`, nigdy sklejanie
-stringów. Brak sprzętu ma **wyłączyć funkcję**, a nie wywrócić program.
-
-**Degradacja zamiast awarii.** Brak mikrofonu → czat tekstowy. Brak Pipera →
-odpowiedź tekstem. Brak FAISS-a → wyszukiwanie w NumPy. Brak bazy → okno
-rozmowy w RAM. Każdy brak ma dać jedno zdanie wyjaśnienia i pracować dalej.
+> **The plugin manager is not a sandbox.** The module is imported and executed
+> with the full privileges of the account. That is a limitation of the
+> architecture, stated plainly in the Limitations section of the README — do not
+> report it as a bug.
 
 ---
 
-## Zgłaszanie błędów i pomysłów
+## Rules the rest of the code follows
 
-Szablony są w [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE). Do zgłoszenia
-błędu dołącz **wyjście `python main.py --check-deps`** — to jedna komenda, która
-opisuje całe środowisko i oszczędza rundę pytań.
+**A comment answers "why", not "what".** The code says what it does. A comment
+exists so that the next person does not "fix" something that looks odd for a
+reason they do not know about. If something is done differently from the obvious
+way — write down why, preferably with the number or the symptom that forced it.
 
-Zanim zgłosisz: przeczytaj sekcję **Ograniczenia / Known limitations** w README.
-Halucynacje małego modelu, pomyłki rozpoznawania mowy w hałasie i pytanie o zgodę
-przy każdej akcji HIGH to **udokumentowane właściwości**, nie błędy.
+**New user-facing text goes into `i18n.py`**, not into `print()`. The English
+catalogue (`_EN`) is the reference; a missing translation shows the English text,
+never an empty label. A test checks that both catalogues carry the same set of
+keys.
 
-## Pull requesty
+**A new setting means three places at once**: a field in `Settings`
+(`config.py`), an entry in `.env.example` with a comment on what it is for, and
+a test. A setting with no entry in `.env.example` is practically undiscoverable —
+`tests/test_docs.py` enforces this.
 
-* jedna zmiana = jeden PR; opisz **dlaczego**, nie tylko co,
-* `pytest`, `ruff check .` i `mypy .` mają przechodzić (CI sprawdza to samo),
-* nowe zachowanie ma mieć test — najlepiej taki, który bez poprawki nie przechodzi,
-* zmiana w zachowaniu widocznym dla użytkownika = aktualizacja README w tym
-  samym PR-ze.
+**Nothing assumes a particular machine.** No absolute paths, no user names, no
+assumptions about the file system or about hardware being present. Ask
+`config.detect_platform()` about the system and the functions in `config.py`
+about paths, never string concatenation. Missing hardware must **disable a
+feature**, not bring the program down.
 
-Uwaga na stan bazowy: `ruff check .` zgłasza ~430 istniejących trafień
-(w większości celowo leniwe importy warstw sprzętowych i polskie znaki
-w tekstach), a `mypy .` ma trafienia w testach. **Nie naprawiaj ich przy okazji**
-— porównuj z tym, co było przed Twoją zmianą.
+**Degradation instead of failure.** No microphone → text chat. No Piper → answers
+in text. No FAISS → similarity in NumPy. No database → the conversation window in
+RAM. Every absence should produce one sentence of explanation and carry on.
+
+---
+
+## Reporting bugs and ideas
+
+The templates are in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE). Attach
+the output of **`python main.py --check-deps`** to a bug report — it is one
+command that describes the whole environment and saves us both a round of
+questions.
+
+Before you report: read the **Limitations / Known limitations** section of the
+README. Hallucinations from a small model, speech-recognition mistakes in noise,
+and being asked for consent on every HIGH action are **documented properties**,
+not bugs.
+
+## Pull requests
+
+* one change = one PR; describe **why**, not just what,
+* `pytest`, `ruff check .` and `mypy .` must pass (CI checks the same),
+* new behaviour needs a test — preferably one that fails without the fix,
+* a change in user-visible behaviour means updating the README in the same PR.
+
+Mind the baseline: `ruff check .` reports ~430 pre-existing findings (mostly
+deliberately lazy imports of the hardware layers) and `mypy .` has findings in
+the tests. **Do not fix those in passing** — compare against what was there
+before your change.

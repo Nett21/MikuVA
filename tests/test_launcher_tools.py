@@ -239,7 +239,7 @@ def test_nieznana_aplikacja_daje_podpowiedz(desktop_dir: Path) -> None:
     with pytest.raises(ToolError) as blad:
         run(narzedzia["app.launch"].run(AppLaunchArgs(name="photoshop"), ctx()))
 
-    assert "nie znalazłam aplikacji" in blad.value.message
+    assert "could not find the application" in blad.value.message
     assert "Firefox" in blad.value.message  # model dostaje przykłady
 
 
@@ -321,7 +321,7 @@ def test_otwarcie_pliku_tylko_z_dozwolonego_katalogu(
 
     with pytest.raises(ToolError) as blad:
         run(narzedzia["open.path"].run(OpenPathArgs(path="/etc/passwd"), ctx()))
-    assert "poza dozwolonymi katalogami" in blad.value.message
+    assert "outside the allowed directories" in blad.value.message
     assert len(spawn.calls) == 1  # drugie wywołanie nie doszło do systemu
 
 
@@ -335,7 +335,7 @@ def test_windows_otwiera_przez_startfile(tmp_path: Path, monkeypatch: pytest.Mon
     note = open_target("https://example.org", platform_info=_windows(), opener=opener)
 
     assert opener.targets == ["https://example.org"]
-    assert "domyślnym programem" in note
+    assert "default program" in note
 
 
 def test_brak_mechanizmu_otwierania_daje_czytelna_odmowe(
@@ -351,7 +351,7 @@ def test_brak_mechanizmu_otwierania_daje_czytelna_odmowe(
 
     with pytest.raises(LaunchError) as blad:
         open_target("https://example.org", platform_info=_linux())
-    assert "nie znalazłam programu" in blad.value.message
+    assert "could not find a program" in blad.value.message
 
 
 # --------------------------------------------------------------------------- #
@@ -404,25 +404,25 @@ def test_procesow_systemowych_nie_zamykamy(nazwa: str) -> None:
     assert nazwa in PROTECTED_NAMES
     with pytest.raises(ProcessRefusedError) as blad:
         check_terminate(ProcessInfo(pid=1234, name=nazwa, username="net"))
-    assert "chronionych" in blad.value.message
+    assert "protected list" in blad.value.message
 
 
 def test_wlasnego_procesu_ani_rodzica_nie_zamykamy() -> None:
     mine = ProcessInfo(pid=os.getpid(), name="miku", username="net")
     with pytest.raises(ProcessRefusedError) as blad:
         check_terminate(mine)
-    assert "nie zamykam siebie" in blad.value.message
+    assert "do not close myself" in blad.value.message
 
     parent = ProcessInfo(pid=os.getppid(), name="terminal", username="net")
     with pytest.raises(ProcessRefusedError) as blad:
         check_terminate(parent)
-    assert "nadrzędny" in blad.value.message
+    assert "parent process" in blad.value.message
 
 
 def test_procesu_innego_uzytkownika_nie_zamykamy() -> None:
     with pytest.raises(ProcessRefusedError) as blad:
         check_terminate(ProcessInfo(pid=4242, name="nginx", username="www", own=False))
-    assert "innego użytkownika" in blad.value.message
+    assert "another user" in blad.value.message
 
 
 def test_procesu_numer_jeden_nie_zamykamy() -> None:

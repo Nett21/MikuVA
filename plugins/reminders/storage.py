@@ -32,6 +32,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Final
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -136,7 +137,7 @@ class ReminderStore:
 
     def __init__(self, database: Any) -> None:
         if database is None:
-            raise ReminderError("przypomnienia wymagają działającej bazy danych")
+            raise ReminderError(t("rem.needs_db"))
         self._db = database
         self._ready = False
 
@@ -151,7 +152,7 @@ class ReminderStore:
                 for statement in _SCHEMA:
                     connection.execute(statement)
         except Exception as exc:  # sqlite3.Error, DatabaseError, atrapy w testach
-            raise ReminderError(f"nie mogę przygotować tabeli przypomnień ({exc})") from exc
+            raise ReminderError(t("rem.table_failed", error=exc)) from exc
         self._ready = True
 
     # --- zapis ------------------------------------------------------------- #
@@ -185,7 +186,7 @@ class ReminderStore:
                 )
                 identifier = int(cursor.lastrowid or 0)
         except Exception as exc:
-            raise ReminderError(f"nie udało się zapisać przypomnienia ({exc})") from exc
+            raise ReminderError(t("rem.save_failed", error=exc)) from exc
 
         return Reminder(
             id=identifier,

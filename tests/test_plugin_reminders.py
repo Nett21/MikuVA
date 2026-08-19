@@ -231,7 +231,7 @@ def test_limit_aktywnych_przypomnien(store: ReminderStore) -> None:
     for numer in range(2):
         run(tool.run(ReminderAddArgs(text=f"raz {numer}", in_minutes=numer + 1), tool_context()))
 
-    with pytest.raises(ToolError, match="aktywnych"):
+    with pytest.raises(ToolError, match="already"):
         run(tool.run(ReminderAddArgs(text="jeszcze", in_minutes=5), tool_context()))
 
 
@@ -258,13 +258,13 @@ def test_pusta_lista_mowi_wprost(store: ReminderStore) -> None:
     result = run(tool.run(ReminderListArgs(), tool_context()))
 
     assert result.ok and result.data["reminders"] == []
-    assert "brak" in result.display
+    assert "no reminders" in result.display
 
 
 def test_odwolanie_nieistniejacego_numeru_to_blad_dla_modelu(store: ReminderStore) -> None:
     tool = tools_for(store)["reminders.cancel"]
 
-    with pytest.raises(ToolError, match="nie ma aktywnego"):
+    with pytest.raises(ToolError, match="no active reminder"):
         run(tool.run(ReminderCancelArgs(reminder_id=999), tool_context()))
 
 

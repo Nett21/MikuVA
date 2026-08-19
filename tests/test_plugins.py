@@ -137,7 +137,7 @@ def test_plugin_bez_kontraktu_jest_odrzucany(tmp_path: Path) -> None:
 
     loaded = by_name(PluginManager(settings).load())
 
-    assert not loaded["nijaki"].ok and "kontraktu" in loaded["nijaki"].error
+    assert not loaded["nijaki"].ok and "contract" in loaded["nijaki"].error
 
 
 def test_plugin_bez_obiektu_plugin_mowi_czego_brakuje(tmp_path: Path) -> None:

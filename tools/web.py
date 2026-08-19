@@ -45,6 +45,7 @@ from host.http import (
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
 from tools.webtext import ContentError, extract_readable, strip_tags
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -135,13 +136,12 @@ class WebSearchTool(_WebTool[SearchArgs]):
 
         if not results:
             raise ToolError(
-                f"wyszukiwarka nie zwróciła wyników dla '{args.query}' "
-                "(albo zmieniła format strony — wtedy pomoże web.fetch z konkretnym adresem)"
+                t("web.no_results", query=args.query)
             )
         heading = ", ".join(item["title"][:60] for item in results[:3])
         return ToolResult.success(
             {"query": args.query, "provider": provider, "count": len(results), "results": results},
-            display=f"'{args.query}': {len(results)} wyników — {heading}",
+            display=t("web.results", query=args.query, count=len(results), hosts=heading),
             untrusted=True,
         )
 
@@ -204,8 +204,7 @@ class WebFetchTool(_WebTool[FetchArgs]):
 
         if not text.strip():
             raise ToolError(
-                f"pod adresem {redact_url(response.url)} nie ma tekstu do odczytania "
-                "(strona może wymagać JavaScriptu albo zgody na ciasteczka)"
+                t("web.no_text", url=redact_url(response.url))
             )
 
         return ToolResult.success(
@@ -339,7 +338,7 @@ def build_web_tools(
                     "containing a phrase. Only http and https; private and local addresses "
                     "are refused."
                 ),
-                summary="pobranie treści strony do streszczenia",
+                summary=t("spec.web_fetch"),
                 args_model=FetchArgs,
                 risk=RiskLevel.MEDIUM,
                 requires_network=True,

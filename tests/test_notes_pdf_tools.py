@@ -308,7 +308,7 @@ def test_pdf_poza_dozwolonym_katalogiem_jest_odrzucany(pdf_root: Path, tmp_path:
 
     with pytest.raises(ToolError) as blad:
         run(narzedzia["pdf.read"].run(PdfReadArgs(path=str(obcy)), ctx()))  # type: ignore[call-arg]
-    assert "poza dozwolonymi katalogami" in blad.value.message
+    assert "outside the allowed directories" in blad.value.message
 
 
 def test_plik_bez_rozszerzenia_pdf_jest_odrzucany(pdf_root: Path) -> None:
@@ -322,7 +322,7 @@ def test_uszkodzony_pdf_daje_czytelny_blad(pdf_root: Path) -> None:
     narzedzia = pdf_tools(pdf_root, reader=BrokenPdfReader)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["pdf.read"].run(PdfReadArgs(path="umowa.pdf"), ctx()))  # type: ignore[call-arg]
-    assert "nie udało się otworzyć" in blad.value.message
+    assert "could not open" in blad.value.message
 
 
 def test_pdf_bez_tekstu_mowi_o_skanie(pdf_root: Path) -> None:
@@ -330,7 +330,7 @@ def test_pdf_bez_tekstu_mowi_o_skanie(pdf_root: Path) -> None:
     narzedzia = pdf_tools(pdf_root, reader=EmptyPdfReader)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["pdf.read"].run(PdfReadArgs(path="umowa.pdf"), ctx()))  # type: ignore[call-arg]
-    assert "skanem" in blad.value.message
+    assert "scan" in blad.value.message
 
 
 def test_wykrywanie_biblioteki_pdf_nie_wymaga_jej_obecnosci() -> None:

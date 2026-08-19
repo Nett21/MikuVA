@@ -51,6 +51,7 @@ from typing import Any, Final, Protocol, runtime_checkable
 
 from config import PROJECT_ROOT, Settings, get_settings
 from tools.base import Tool
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -281,7 +282,7 @@ def _import_plugin_module(name: str, directory: Path) -> ModuleType:
         module_name, directory / "__init__.py", submodule_search_locations=[str(directory)]
     )
     if spec is None or spec.loader is None:
-        raise PluginError(f"nie umiem zaimportować pluginu z {directory}")
+        raise PluginError(t("plug.import_failed", path=directory))
     module = importlib.util.module_from_spec(spec)
     sys.modules[module_name] = module
     try:
@@ -306,8 +307,8 @@ def _plugin_from_module(module: ModuleType, name: str) -> Plugin:
 
     if not isinstance(candidate, Plugin):
         raise PluginError(
-            f"plugin {name!r} nie spełnia kontraktu (brakuje info/tools/available/poll)",
-            hint="najprościej odziedziczyć po plugins.manager.BasePlugin",
+            t("plug.bad_contract", name=repr(name)),
+            hint=t("plug.bad_contract_hint"),
         )
     return candidate
 

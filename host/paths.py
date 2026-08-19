@@ -46,6 +46,7 @@ from config import (
     get_settings,
     path_from_env,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ class Workspace:
         """
         text = str(raw or "").strip().strip('"').strip("'")
         if not text:
-            raise PathNotAllowedError("nie podano ścieżki")
+            raise PathNotAllowedError(t("path.empty"))
 
         expanded = Path(os.path.expandvars(text)).expanduser()
         if not expanded.is_absolute():
@@ -206,19 +207,16 @@ class Workspace:
         candidate = _canonical(expanded)
         if not self.contains(candidate):
             raise PathNotAllowedError(
-                f"ścieżka '{text}' jest poza dozwolonymi katalogami ({self.describe()}). "
-                "Dostęp poza nie jest możliwy — także przez '..' i dowiązania symboliczne."
+                t("path.outside", path=text, roots=self.describe())
             )
         if must_exist and not candidate.exists():
             raise PathNotAllowedError(
-                f"nie ma takiej ścieżki: {self.label(candidate)}. Ścieżki podawaj względem "
-                "dozwolonego katalogu (np. 'plan.txt', 'notatki/rower.md'); '.' oznacza sam "
-                "katalog. Listę katalogów da narzędzie fs.roots."
+                t("path.missing", path=self.label(candidate))
             )
         if must_be_file and candidate.exists() and not candidate.is_file():
-            raise PathNotAllowedError(f"to nie jest plik: {self.label(candidate)}")
+            raise PathNotAllowedError(t("path.not_a_file", path=self.label(candidate)))
         if must_be_dir and candidate.exists() and not candidate.is_dir():
-            raise PathNotAllowedError(f"to nie jest katalog: {self.label(candidate)}")
+            raise PathNotAllowedError(t("path.not_a_dir", path=self.label(candidate)))
         return candidate
 
     def _base_for(self, relative: Path) -> Path:
@@ -353,7 +351,7 @@ def read_text_limited(path: Path, max_bytes: int) -> tuple[str, bool]:
         with path.open("rb") as handle:
             raw = handle.read(max_bytes + 1)
     except OSError as exc:
-        raise PathNotAllowedError(f"nie udało się odczytać pliku: {exc}") from exc
+        raise PathNotAllowedError(t("path.read_failed", error=exc)) from exc
 
     truncated = len(raw) > max_bytes
     if truncated:
@@ -407,7 +405,7 @@ def sorted_entries(directory: Path, *, limit: int) -> list[Path]:
     try:
         entries = list(directory.iterdir())
     except OSError as exc:
-        raise PathNotAllowedError(f"nie udało się odczytać katalogu: {exc}") from exc
+        raise PathNotAllowedError(t("path.list_failed", error=exc)) from exc
     entries.sort(key=lambda item: (not item.is_dir(), item.name.casefold()))
     return entries[:limit]
 

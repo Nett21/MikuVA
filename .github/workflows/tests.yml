@@ -1,24 +1,24 @@
-name: testy
+name: tests
 
-# Bez mikrofonu, bez GPU, bez działającej Ollamy i bez internetu w trakcie
-# testów. Cała warstwa sprzętowa i sieciowa jest podmieniona na atrapy
-# (tests/conftest.py), więc ten sam zestaw przechodzi na maszynie CI i na
-# laptopie — patrz sekcja „Testy" w README.
+# No microphone, no GPU, no running Ollama and no internet during the tests.
+# The whole hardware and network layer is replaced with fakes
+# (tests/conftest.py), so the same suite passes on a CI machine and on a
+# laptop — see the "Tests" section in the README.
 #
-# UWAGA: zielone testy dowodzą poprawności LOGIKI, nie tego, że asystent
-# zadziała na konkretnym sprzęcie. CI nie sprawdzi mikrofonu, sterownika
-# dźwięku ani wersji CUDA. Od tego jest `python main.py --check-deps`
-# uruchomiony u siebie.
+# NOTE: green tests prove the LOGIC is correct, not that the assistant will work
+# on a particular piece of hardware. CI will not check the microphone, the sound
+# driver or the CUDA version. That is what `python main.py --check-deps` run on
+# your own machine is for.
 
 on:
   push:
     branches: [main, master]
   pull_request:
-  # Ręczne uruchomienie z zakładki Actions — przydatne po zmianie w CI.
+  # Manual runs from the Actions tab — useful after a change to CI itself.
   workflow_dispatch:
 
-# Nowy push do tej samej gałęzi anuluje poprzedni przebieg. Bez tego seria
-# commitów zajmuje kolejkę przebiegami, których wyniku i tak nikt nie przeczyta.
+# A new push to the same branch cancels the previous run. Without this, a series
+# of commits fills the queue with runs nobody will read the result of.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -27,14 +27,14 @@ permissions:
   contents: read
 
 jobs:
-  testy:
+  tests:
     name: pytest (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     strategy:
-      # Awaria jednej kombinacji nie ma ubijać pozostałych: chcemy wiedzieć,
-      # czy problem dotyczy jednego systemu, czy wszystkich.
+      # One failing combination must not kill the others: we want to know
+      # whether the problem affects one system or all of them.
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -52,15 +52,15 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
-      - name: Zależności
+      - name: Dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
-      # Sprawdzenie, że KAŻDY moduł importuje się osobno. Wyłapuje cykliczne
-      # importy i literówki w nazwach, których testy jednostkowe mogą nie
-      # dotknąć, bo importują tylko to, czego akurat używają.
-      - name: Importy
+      # Checking that EVERY module imports on its own. This catches circular
+      # imports and typos in names that unit tests may never touch, because they
+      # import only what they happen to use.
+      - name: Imports
         shell: bash
         run: |
           python - <<'PY'
@@ -84,27 +84,27 @@ jobs:
               except Exception as exc:
                   bledy.append(f"{name}: {type(exc).__name__}: {exc}")
 
-          print(f"sprawdzono {len(moduly)} modulow")
+          print(f"checked {len(moduly)} modules")
           for blad in bledy:
-              print(f"  BLAD {blad}")
+              print(f"  ERROR {blad}")
           raise SystemExit(1 if bledy else 0)
           PY
 
-      - name: Testy
-        # Bez `.env` — testy mają być niezależne od konfiguracji maszyny,
-        # a na CI takiego pliku i tak nie ma. Gdyby któryś test go potrzebował,
-        # to jest błąd testu, nie środowiska.
+      - name: Tests
+        # No `.env` — the tests must be independent of machine configuration,
+        # and on CI no such file exists anyway. If some test needed one, that
+        # would be a bug in the test, not in the environment.
         run: python -m pytest -q
 
-      # Raport zależności NIE jest bramką: na CI brakuje mikrofonu, Ollamy
-      # i modeli, więc kod wyjścia 1 jest tu normalny. Uruchamiamy go, bo
-      # sprawdza całą warstwę detekcji na prawdziwym systemie — a to jedyne
-      # miejsce, gdzie widać, że coś się w niej wywraca na Windowsie.
-      - name: Detekcja środowiska (informacyjnie)
+      # The dependency report is NOT a gate: CI has no microphone, no Ollama
+      # and no models, so exit code 1 is normal here. We run it because it
+      # exercises the whole detection layer on a real system — and that is the
+      # only place where a failure of that layer on Windows becomes visible.
+      - name: Environment detection (informational)
         continue-on-error: true
         run: python main.py --check-deps
 
-  jakosc:
+  quality:
     name: ruff + mypy
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -120,19 +120,18 @@ jobs:
             requirements.txt
             requirements-dev.txt
 
-      - name: Zależności
+      - name: Dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
-      # Obie analizy mają w tym projekcie NIEZEROWY stan bazowy: ruff zgłasza
-      # ~430 trafień (w większości celowo leniwe importy warstw sprzętowych
-      # i polskie znaki w tekstach), mypy — trafienia w testach. Dlatego
-      # `continue-on-error`: wynik jest do PRZECZYTANIA, nie do zablokowania
-      # PR-a. Bramką jest pytest.
+      # Both analyses have a NON-ZERO baseline in this project: ruff reports
+      # ~430 findings (mostly deliberately lazy imports of the hardware layers),
+      # mypy has findings in the tests. Hence `continue-on-error`: the result is
+      # there to be READ, not to block a PR. The gate is pytest.
       #
-      # Gdyby kiedyś udało się sprowadzić stan bazowy do zera, wystarczy
-      # skasować `continue-on-error` z obu kroków.
+      # Should the baseline ever reach zero, simply delete `continue-on-error`
+      # from both steps.
       - name: ruff
         continue-on-error: true
         run: python -m ruff check --output-format=github .

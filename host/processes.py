@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from config import PlatformInfo, detect_platform
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -233,28 +234,26 @@ def check_terminate(
     """Bezpieczniki zamykania procesu. Rzuca :class:`ProcessRefusedError` z powodem."""
     if process.pid <= 1:
         raise ProcessRefusedError(
-            f"proces {process.pid} to proces systemowy — nie zamykam go w żadnym wypadku"
+            t("proc.system_process", pid=process.pid)
         )
     if process.name.casefold() in PROTECTED_NAMES:
         raise ProcessRefusedError(
-            f"proces '{process.name}' jest na liście chronionych (system, sesja, dźwięk) "
-            "— zamknięcie go zerwałoby sesję użytkownika"
+            t("proc.protected", name=process.name)
         )
     own_pid = os.getpid()
     if process.pid == own_pid:
-        raise ProcessRefusedError("to proces samego asystenta — nie zamykam siebie")
+        raise ProcessRefusedError(t("proc.self"))
     try:
         parent_pid = os.getppid()
     except (AttributeError, OSError):  # pragma: no cover - zależne od systemu
         parent_pid = -1
     if process.pid == parent_pid:
         raise ProcessRefusedError(
-            "to proces nadrzędny asystenta (zwykle terminal) — zamknięcie go zamknęłoby rozmowę"
+            t("proc.parent")
         )
     if not process.own:
         raise ProcessRefusedError(
-            f"proces {process.pid} należy do innego użytkownika — zamknięcie wymagałoby "
-            "uprawnień administratora, a na nich narzędzia nie działają"
+            t("proc.other_user", pid=process.pid)
         )
 
 
@@ -284,25 +283,25 @@ def terminate_process(
     try:
         send(pid, number)
     except ProcessLookupError as exc:
-        raise ProcessRefusedError(f"proces {pid} zdążył się zakończyć") from exc
+        raise ProcessRefusedError(t("proc.already_gone", pid=pid)) from exc
     except PermissionError as exc:
         raise ProcessRefusedError(
-            f"brak uprawnień do zamknięcia procesu {pid} — należy do innego użytkownika"
+            t("proc.no_permission", pid=pid)
         ) from exc
     except OSError as exc:
-        raise ProcessRefusedError(f"nie udało się zamknąć procesu {pid}: {exc}") from exc
+        raise ProcessRefusedError(t("proc.kill_failed", pid=pid, error=exc)) from exc
 
-    how = "wymuszone zamknięcie" if force and not info.is_windows else "prośba o zamknięcie"
-    return f"{how} procesu {process.name} (PID {pid})"
+    how = t("proc.forced") if force and not info.is_windows else t("proc.requested")
+    return t("proc.result", how=how, name=process.name, pid=pid)
 
 
 def describe_backend(platform_info: PlatformInfo | None = None) -> str:
     """Jedna linijka do raportu zależności."""
     which = backend(platform_info)
     labels = {
-        BACKEND_PSUTIL: "psutil (nazwa, właściciel, pamięć)",
-        BACKEND_PROCFS: "/proc (biblioteka standardowa)",
-        BACKEND_NONE: "brak — narzędzia procesowe niedostępne",
+        BACKEND_PSUTIL: t("proc.backend_psutil"),
+        BACKEND_PROCFS: "/proc (standard library)",
+        BACKEND_NONE: t("proc.backend_none"),
     }
     return labels[which]
 

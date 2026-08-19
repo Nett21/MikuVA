@@ -33,6 +33,7 @@ from config import Settings
 from security.confirm import ConfirmationRequest
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ class _NotesTool[ArgsT: ToolArgs](BaseTool[ArgsT]):
     @property
     def memory(self) -> Any:
         if self._memory is None:  # pragma: no cover - available() wyklucza tę ścieżkę
-            raise ToolError("pamięć asystenta nie jest dostępna")
+            raise ToolError(t("notes.no_memory"))
         return self._memory
 
     def _note_or_error(self, note_id: int) -> Any:
@@ -137,14 +138,14 @@ class NotesCreateTool(_NotesTool[NotesCreateArgs]):
     async def run(self, args: NotesCreateArgs, ctx: ToolContext) -> ToolResult:
         note = self.memory.add_note(args.body, title=args.title, tags=args.tags)
         if note is None:
-            raise ToolError(f"nie udało się zapisać notatki: {getattr(self.memory, 'error', '')}")
+            raise ToolError(t("notes.save_failed", error=getattr(self.memory, "error", "")))
         return ToolResult.success(
             {"id": note.id, "title": note.title, "chars": len(args.body)},
-            display=f"zapisano notatkę {note.id}: {note.title or note.preview}",
+            display=t("notes.saved", id=note.id, title=note.title or note.preview),
         )
 
     async def preview(self, args: NotesCreateArgs, ctx: ToolContext) -> str:
-        return f"zapisałoby notatkę '{args.title or args.body[:40]}' ({len(args.body)} znaków)"
+        return t("notes.preview", title=args.title or args.body[:40], chars=len(args.body))
 
 
 class NotesAppendTool(_NotesTool[NotesAppendArgs]):
@@ -154,10 +155,10 @@ class NotesAppendTool(_NotesTool[NotesAppendArgs]):
         self._note_or_error(args.note_id)
         note = self.memory.append_note(args.note_id, args.text)
         if note is None:
-            raise ToolError(f"nie udało się dopisać do notatki {args.note_id}")
+            raise ToolError(t("notes.append_failed", id=args.note_id))
         return ToolResult.success(
             {"id": note.id, "chars": len(note.body)},
-            display=f"dopisano do notatki {note.id} ({len(note.body)} znaków razem)",
+            display=t("notes.appended", id=note.id, chars=len(note.body)),
         )
 
     async def preview(self, args: NotesAppendArgs, ctx: ToolContext) -> str:
@@ -196,10 +197,10 @@ class NotesDeleteTool(_NotesTool[NotesDeleteArgs]):
         note = self._note_or_error(args.note_id)
         label = note.title or note.preview
         if not self.memory.delete_note(args.note_id):
-            raise ToolError(f"nie udało się usunąć notatki {args.note_id}")
+            raise ToolError(t("notes.delete_failed", id=args.note_id))
         return ToolResult.success(
             {"id": args.note_id, "title": note.title},
-            display=f"usunięto notatkę {args.note_id}: {label}",
+            display=t("notes.deleted", id=args.note_id, title=label),
         )
 
     async def preview(self, args: NotesDeleteArgs, ctx: ToolContext) -> str:
@@ -271,7 +272,7 @@ def build_notes_tools(
                     "Delete a note permanently, together with its semantic index entry. "
                     "Requires the user's confirmation."
                 ),
-                summary="usunięcie notatki (wymaga zgody)",
+                summary=t("spec.notes_delete"),
                 args_model=NotesDeleteArgs,
                 risk=RiskLevel.HIGH,
                 timeout_s=10.0,

@@ -1,55 +1,56 @@
 ---
-name: Propozycja zmiany / Feature request
-about: Pomysł na nową funkcję albo na zmianę istniejącej
+name: Feature request
+about: An idea for a new feature, or a change to an existing one
 title: ''
 labels: enhancement
 assignees: ''
 ---
 
-## Problem
+## The problem
 
-<!-- Zacznij od problemu, nie od rozwiązania. Co próbujesz zrobić i co Ci
-     w tym przeszkadza? Bez tego trudno ocenić, czy proponowane rozwiązanie
-     jest najlepsze z możliwych. -->
+<!-- Start from the problem, not the solution. What are you trying to do, and
+     what gets in the way? Without that it is hard to judge whether the proposed
+     solution is the best one available. -->
 
-## Propozycja
+## The proposal
 
-<!-- Jak miałoby to działać z punktu widzenia użytkownika. -->
+<!-- How it would work from the user's point of view. -->
 
-## Czego to dotyczy
+## What this concerns
 
-- [ ] nowe **narzędzie** (coś, co model może wywołać)
-- [ ] nowy **plugin**
-- [ ] rozpoznawanie mowy / słowo aktywujące
-- [ ] synteza mowy
-- [ ] pamięć (długoterminowa albo semantyczna)
-- [ ] interfejs (okno, terminal, tryb usługi)
-- [ ] instalacja i konfiguracja
-- [ ] coś innego:
+- [ ] a new **tool** (something the model can call)
+- [ ] a new **plugin**
+- [ ] speech recognition / the wake word
+- [ ] speech synthesis
+- [ ] memory (long-term or semantic)
+- [ ] the interface (window, terminal, service mode)
+- [ ] installation and configuration
+- [ ] something else:
 
-## Jeśli to nowe narzędzie
+## If this is a new tool
 
-<!-- Wypełnij, jeśli chodzi o coś, co model ma móc wywołać. -->
+<!-- Fill this in if it concerns something the model should be able to call. -->
 
-**Poziom ryzyka** — SAFE (tylko odczyt) / MEDIUM (zmiana odwracalna) /
-HIGH (skutków nie da się cofnąć) / CRITICAL (może zepsuć system):
+**Risk level** — SAFE (read only) / MEDIUM (reversible change) /
+HIGH (consequences cannot be undone) / CRITICAL (can break the system):
 
-**Czy wymaga czegoś, czego nie ma na czystej instalacji** (program systemowy,
-klucz API, sprzęt)?
+**Does it need anything absent from a clean installation** (a system program,
+an API key, hardware)?
 
-## Granice projektu
+## The project's boundaries
 
-Sprawdź, czy pomysł nie trafia w coś, co jest tu **świadomą decyzją**, a nie
-brakiem — pełna lista w sekcji Ograniczeń w README:
+Check whether the idea runs into something that is a **deliberate decision**
+here rather than an omission — the full list is in the Limitations section of
+the README:
 
-- [ ] Model **nigdy** nie wykonuje niczego poza zdefiniowanymi narzędziami.
-      Nie będzie „napisz i uruchom skrypt" ani dowolnej powłoki.
-- [ ] HIGH i CRITICAL **zawsze** wymagają potwierdzenia. Nie będzie trybu
-      „ufam ci, nie pytaj".
-- [ ] Architektura jest **jednoosobowa i jednomaszynowa**: bez kont, bez
-      chmury, bez synchronizacji między urządzeniami, bez dostępu zdalnego.
-- [ ] Wszystko liczy się **lokalnie**. Propozycje wysyłania treści rozmów
-      albo pamięci do zewnętrznego API są poza zakresem projektu.
+- [ ] The model **never** executes anything outside the defined tools.
+      There will be no "write and run a script" and no arbitrary shell.
+- [ ] HIGH and CRITICAL **always** require confirmation. There will be no
+      "trust me, stop asking" mode.
+- [ ] The architecture is **single-user and single-machine**: no accounts, no
+      cloud, no synchronisation between devices, no remote access.
+- [ ] Everything is computed **locally**. Proposals to send conversation content
+      or memory to an external API are out of scope.
 
-<!-- Jeśli Twój pomysł wymaga przesunięcia którejś z tych granic — napisz to
-     wprost i uzasadnij. To nie znaczy „nie", znaczy „porozmawiajmy". -->
+<!-- If your idea requires moving one of these boundaries — say so explicitly and
+     explain why. That does not mean "no", it means "let us talk". -->

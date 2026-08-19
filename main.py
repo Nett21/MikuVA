@@ -65,15 +65,19 @@ try:
         save_user_settings,
     )
 except ImportError as bootstrap_error:  # pragma: no cover - zależne od środowiska
+    # Ten jeden komunikat MUSI być literałem po angielsku, a nie kluczem i18n:
+    # lecimy tędy, gdy nie da się zaimportować `config`, a razem z nim `i18n`.
+    # Wołanie `t()` w tym miejscu skończyłoby się drugim ImportError zamiast
+    # informacji, co zrobić.
     print(
-        "[ERROR] Brakuje pakietów Pythona wymaganych do uruchomienia asystenta "
+        "[ERROR] Python packages required to run the assistant are missing "
         f"({bootstrap_error}).\n"
-        "        Zainstaluj zależności:\n"
+        "        Install the dependencies:\n"
         "          python -m pip install -r requirements.txt\n"
-        "        Bez internetu (po przygotowaniu magazynu kół):\n"
+        "        Without the internet (after preparing the wheelhouse):\n"
         "          python -m pip install --no-index --find-links vendor/wheels\n"
         "                                -r requirements.txt\n"
-        "        albo uruchom skrypt instalacyjny dla swojego systemu z katalogu scripts/.",
+        "        or run the installation script for your system from scripts/.",
         file=sys.stderr,
     )
     raise SystemExit(3) from bootstrap_error
@@ -540,10 +544,7 @@ class VoiceOutput:
         """Błąd z wątku syntezy — pokazujemy raz i schodzimy do trybu tekstowego."""
         print()
         print(f"{TAG_ERROR} {error.user_message}")
-        print(
-            f"{TAG_SYSTEM} Wyłączam mowę — odpowiedzi zostają tekstowe "
-            "(/glos on spróbuje ponownie)."
-        )
+        print(f"{TAG_SYSTEM} " + t("tts.speech_off"))
         self._enabled = False
         self._unavailable_reason = getattr(error, "message", str(error))
 
@@ -1525,11 +1526,9 @@ def run_terminal(
     try:
         from brain.llm import LLMError, OllamaClient
     except ImportError as exc:
-        print(
-            f"{TAG_ERROR} Brakuje pakietu wymaganego do rozmowy z modelem ({exc}).\n"
-            f"        Zainstaluj zależności: {pip_install_hint(report.offline)}\n"
-            f"        albo: {install_instruction(report.platform_info)}"
-        )
+        print(f"{TAG_ERROR} " + t("cli.llm_package_missing", error=exc))
+        print("        " + t("cli.install_deps", command=pip_install_hint(report.offline)))
+        print("        " + t("cli.or_run", command=install_instruction(report.platform_info)))
         return EXIT_MISSING_DEPENDENCIES
 
     _print_header(settings, report)
@@ -1962,9 +1961,9 @@ def run_headless(
     try:
         from brain.llm import LLMError, OllamaClient
     except ImportError as exc:
+        print(f"{TAG_ERROR} " + t("cli.llm_package_missing", error=exc), file=sys.stderr)
         print(
-            f"{TAG_ERROR} Brakuje pakietu wymaganego do rozmowy z modelem ({exc}).\n"
-            f"        Zainstaluj zależności: {pip_install_hint(report.offline)}",
+            "        " + t("cli.install_deps", command=pip_install_hint(report.offline)),
             file=sys.stderr,
         )
         return EXIT_MISSING_DEPENDENCIES

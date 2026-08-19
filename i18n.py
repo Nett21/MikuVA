@@ -1000,6 +1000,500 @@ _EN: Final[dict[str, str]] = {
     "stt.details_in_log": "details in logs/errors.log",
     "vad.bad_sample_rate": "webrtcvad supports only {supported} Hz, but {actual} Hz was set",
     "vad.bad_frame_ms": "webrtcvad supports frames of {supported} ms, but {actual} ms was set",
+    # --- sieć (host/http.py) ---------------------------------------------- #
+    "net.bad_scheme": "the '{scheme}' scheme is not supported — only http and https are allowed",
+    "net.bad_url": "the address '{url}' is invalid",
+    "net.credentials_in_url": "an address carrying a login and password is not supported",
+    "net.bad_port": "port {port} is not a web port — I do not connect to services of other kinds",
+    "net.local_address": (
+        "'{host}' is a local address — the web tools do not connect to this machine "
+        "or to the local network"
+    ),
+    "net.bad_hostname": "'{host}' does not look like a valid host name",
+    "net.private_address": (
+        "'{host}' points at {address}, which is not a public internet address "
+        "(local network, this machine, or cloud service metadata)"
+    ),
+    "net.offline": "the assistant is working offline, so it does not reach the internet",
+    "net.offline_hint": "set OFFLINE_MODE=off if you want to allow network access",
+    "net.dns_failed": "could not resolve the name '{host}'",
+    "net.dns_hint": "check your internet connection or the address",
+    "net.bad_json": "the response from {host} is not valid JSON",
+    "net.bad_json_hint": "the server may have returned an error page instead of data",
+    "net.timeout": "the server {host} did not answer within {seconds} s",
+    "net.timeout_hint": "try again, or check the connection",
+    "net.too_many_redirects": "too many redirects",
+    "net.connect_failed": "could not connect to {host}",
+    "net.connect_hint": "check your internet connection",
+    "net.redirect_limit": "the limit of {count} redirects was exceeded",
+    "net.redirect_loop": "the page redirects in a loop, or asks for cookie consent",
+    "net.not_text": "content of type '{content_type}' is not text — I am not fetching it",
+    "net.not_text_hint": "this tool reads pages and textual data, not binary files",
+    "net.too_large": "the resource is {size} kB, and the limit is {limit} kB",
+    "net.too_large_hint": "give the address of a specific page instead of a whole archive",
+    "net.http_status": "the server {host} answered with code {status}",
+    "net.no_hostname": "the address '{url}' has no host name",
+    "net.offline_tools_off": (
+        "the assistant is working offline (OFFLINE_MODE=on) — the web tools are "
+        "disabled; everything local keeps working"
+    ),
+    # --- baza pamięci (database/database.py) ------------------------------ #
+    "db.mkdir_failed": "Cannot create the directory for the memory database: {error}",
+    "db.mkdir_hint": (
+        "point somewhere else with MIKU_DATA_DIR or with DATABASE_PATH in .env, "
+        "or disable memory: MEMORY_ENABLED=false"
+    ),
+    "db.open_failed": "Cannot open the memory database: {path} ({error})",
+    "db.open_hint": (
+        "check write permissions for the directory, point elsewhere with DATABASE_PATH "
+        "in .env, or disable memory: MEMORY_ENABLED=false"
+    ),
+    "db.schema_failed": "Could not prepare the database schema: {error}",
+    "db.schema_hint": (
+        "database file: {path} — if it is damaged, move it aside; the assistant will "
+        "create a new one (the memory will be lost)"
+    ),
+    "db.closed": "The memory database is already closed.",
+    "db.busy": "The memory database is held by another process.",
+    "db.busy_hint": "close the second assistant instance, or raise DATABASE_TIMEOUT_S in .env",
+    "db.readonly": "The memory database is read-only: {error}",
+    "db.readonly_hint": "check write permissions, or point elsewhere with MIKU_DATA_DIR",
+    "db.generic_error": "Memory database error: {error}",
+    "db.details_in_log": "details in logs/errors.log",
+    "db.disabled": "disabled by the MEMORY_ENABLED=false setting",
+    "db.disabled_hint": "set MEMORY_ENABLED=true so the assistant remembers between runs",
+    "db.in_memory_only": (
+        "database only in the process memory (DATABASE_PATH=:memory:) — nothing survives "
+        "closing the program"
+    ),
+    # --- model językowy (brain/llm.py) ------------------------------------ #
+    "llm.connect_failed": "I cannot connect to Ollama at {host}.",
+    "llm.connect_hint": (
+        "check that the service is running (`ollama serve`) and that OLLAMA_HOST in .env "
+        "is correct"
+    ),
+    "llm.timeout": "The model did not answer within the time limit ({seconds} s).",
+    "llm.timeout_hint": "raise OLLAMA_READ_TIMEOUT in .env, or pick a smaller model",
+    "llm.model_missing": "The model '{model}' is not available in Ollama.",
+    "llm.http_error": "Ollama returned HTTP error {status}: {body}",
+    "llm.bad_json": "Ollama returned a response that cannot be read as JSON.",
+    "llm.details_in_log": "details in logs/errors.log",
+    "llm.no_details": "no details",
+    "llm.pull_hint": "download it with: ollama pull {model}",
+    # --- embeddingi (brain/embeddings.py) --------------------------------- #
+    "emb.no_package_hint": (
+        "install it (pip install sentence-transformers), or switch to embeddings from "
+        "Ollama: EMBEDDING_ENGINE=ollama"
+    ),
+    "emb.model_missing": "The embedding model '{model}' is not on disk, and downloading is disabled.",
+    "emb.load_failed": "Could not load the embedding model '{model}': {error}",
+    "emb.load_hint": (
+        "check the connection, or fetch the model in advance: "
+        "python scripts/prepare_offline.py --embeddings"
+    ),
+    "emb.not_loaded": "The embedding model has not been loaded.",
+    "emb.compute_failed": "Computing embeddings failed: {error}",
+    "emb.details_in_log": "details in logs/errors.log",
+    "emb.no_httpx": "The httpx package needed to talk to Ollama is missing ({error}).",
+    "emb.ollama_failed": "I cannot compute embeddings through Ollama at {host}.",
+    "emb.ollama_hint": (
+        "check that the service is running (`ollama serve`) and that the model has been "
+        "pulled: ollama pull {model}"
+    ),
+    "emb.no_embeddings_field": "Ollama returned a response with no embeddings.",
+    "emb.no_embeddings_hint": "check whether the model '{model}' computes embeddings at all",
+    "emb.no_embedding_field": "Ollama returned a response with no embedding.",
+    "emb.ollama_model_missing": "Ollama does not have the embedding model '{model}'.",
+    "emb.ollama_http": "Ollama returned HTTP {status}: {body}",
+    "emb.no_package": "The sentence-transformers package is not installed.",
+    "emb.pull_hint": "download it: ollama pull {model}",
+    # --- ścieżki (host/paths.py) ------------------------------------------ #
+    "path.empty": "no path was given",
+    "path.outside": (
+        "the path '{path}' is outside the allowed directories ({roots}). Access "
+        "beyond them is not possible — including through '..' and symbolic links."
+    ),
+    "path.missing": (
+        "no such path: {path}. Give paths relative to an allowed directory "
+        "(e.g. 'plan.txt', 'notes/bike.md'); '.' means the directory itself. "
+        "The fs.roots tool lists the directories."
+    ),
+    "path.not_a_file": "this is not a file: {path}",
+    "path.not_a_dir": "this is not a directory: {path}",
+    "path.read_failed": "could not read the file: {error}",
+    "path.list_failed": "could not read the directory: {error}",
+    # --- uruchamianie programów (host/shell.py) --------------------------- #
+    "shell.path_not_name": "give the program name from the allowed list, not a path ('{raw}')",
+    "shell.hard_blocked": (
+        "the program '{name}' is permanently blocked (privilege escalation, "
+        "operations on storage devices, or system changes)"
+    ),
+    "shell.disabled": (
+        "running programs is disabled — the SHELL_ALLOWED_BINARIES list is empty"
+    ),
+    "shell.not_allowed": "the program '{name}' is not on the SHELL_ALLOWED_BINARIES list ({allowed})",
+    "shell.not_found": "I could not find the program '{name}' in this machine's PATH",
+    "shell.inline_flag": (
+        "the flag '{flag}' runs arbitrary text in a shell and is blocked. Run the "
+        "program directly, with arguments — pipes and redirections are not supported "
+        "(and that is deliberate)."
+    ),
+    "shell.metacharacter": (
+        "the argument '{argument}' contains the shell character '{character}'. The "
+        "program is run WITHOUT a shell, so such a character will not work — and it "
+        "looks like an attempt at command injection."
+    ),
+    "shell.timeout": "the program '{name}' did not finish within {seconds} s — aborted",
+    "shell.spawn_failed": "could not run '{name}': {error}",
+    # --- narzędzia plikowe (tools/filesystem.py) -------------------------- #
+    "fs.listing": "{path}: {count} entries",
+    "fs.binary": "'{path}' looks like a binary file — I am not reading it as text",
+    "fs.search_hits": "'{query}': {count} hits in {path}",
+    "fs.dir_exists": "the directory {path} already exists",
+    "fs.dir_created": "created the directory {path}",
+    "fs.mkdir_failed": "could not create the directory: {error}",
+    "fs.too_large": "the content is {size} B, and the write limit is {limit} B",
+    "fs.is_a_directory": "'{path}' is a directory",
+    "fs.file_exists": (
+        "the file {path} already exists — use mode='overwrite' or mode='append' "
+        "(requires the user's confirmation)"
+    ),
+    "fs.write_failed": "could not write the file: {error}",
+    "fs.no_move_root": "I do not move a directory that is an allowed workspace",
+    "fs.move_failed": "could not move: {error}",
+    "fs.no_delete_root": (
+        "'{path}' is an allowed workspace directory — I do not delete the whole area, "
+        "not even with confirmation"
+    ),
+    "fs.need_recursive": (
+        "'{path}' is a directory — to delete it together with its contents, pass "
+        "recursive=true (requires the user's confirmation)"
+    ),
+    "fs.too_many_entries": (
+        "the directory holds more than {limit} entries ({files} files, "
+        "{directories} subdirectories) — I am not deleting it in one call. Remove the "
+        "contents in smaller batches."
+    ),
+    "fs.rmtree_failed": "could not delete the directory: {error}",
+    "fs.dir_deleted": "deleted the directory {path} ({files} files, {directories} subdirectories)",
+    "fs.unlink_failed": "could not delete the file: {error}",
+    "fs.file_deleted": "deleted the file {path}",
+    # --- słowo aktywujące (audio/wakeword.py) ----------------------------- #
+    "wake.empty_phrase": "The wake phrase is empty.",
+    "wake.empty_phrase_hint": "set the wake_word field in config/user_settings.json",
+    "wake.no_words": "The wake phrase {phrase} contains no words.",
+    "wake.no_words_hint": "use letters, e.g. \u201chey miku\u201d",
+    "wake.no_model": "No openWakeWord model was given.",
+    "wake.no_model_hint": (
+        "put the path in wake_word_model (config/user_settings.json), or drop the "
+        "model file into {directory}"
+    ),
+    "wake.no_package": "The 'openwakeword' package is not installed.",
+    "wake.no_package_hint": "pip install openwakeword, or leave WAKE_ENGINE=auto",
+    "wake.load_failed": "Could not load the openWakeWord model ({error}).",
+    "wake.load_hint": "check the model file and the onnxruntime installation",
+    "wake.needs_transcribe": "The Whisper detector requires a transcription function.",
+    "wake.needs_transcribe_hint": (
+        "the audio pipeline injects it itself — this error means the API was misused"
+    ),
+    # --- wyjście audio (audio/output.py) ---------------------------------- #
+    "out.devices_failed": "Could not read the list of audio devices ({error}).",
+    "out.sound_server_hint": (
+        "check that the sound server is running (PipeWire/PulseAudio/WASAPI/CoreAudio)"
+    ),
+    "out.none_reported": "The system reports no output device (speaker).",
+    "out.none_reported_hint": (
+        "plug in a speaker, or turn speech off: voice_engine in config/user_settings.json"
+    ),
+    "out.not_matched": "No speaker matching '{name}' was found.",
+    "out.available_devices": "devices available: {devices}",
+    "out.open_failed": "Could not open the audio output{error}",
+    "out.open_failed_hint": (
+        "check that the sound server is running and that the device is not busy"
+    ),
+    # --- procesy (host/processes.py) -------------------------------------- #
+    "proc.system_process": "process {pid} is a system process — I will not close it under any circumstances",
+    "proc.protected": (
+        "the process '{name}' is on the protected list (system, session, sound) — "
+        "closing it would break the user's session"
+    ),
+    "proc.self": "this is the assistant's own process — I do not close myself",
+    "proc.parent": (
+        "this is the assistant's parent process (usually the terminal) — closing it "
+        "would end the conversation"
+    ),
+    "proc.other_user": (
+        "process {pid} belongs to another user — closing it would need administrator "
+        "rights, and the tools do not run with those"
+    ),
+    "proc.already_gone": "process {pid} had already finished",
+    "proc.no_permission": "no permission to close process {pid} — it belongs to another user",
+    "proc.kill_failed": "could not close process {pid}: {error}",
+    "proc.forced": "forced close",
+    "proc.requested": "close requested",
+    "proc.result": "{how} of process {name} (PID {pid})",
+    # --- usługi użytkownika (host/services.py) ---------------------------- #
+    "svc.timeout": "systemctl did not answer within the time limit",
+    "svc.call_failed": "could not invoke systemctl: {error}",
+    "svc.no_name": "no service name was given",
+    "svc.bad_name": (
+        "'{name}' does not look like a systemd unit name (allowed: letters, digits, "
+        "dot, dash, underscore, @)"
+    ),
+    "svc.bad_action": (
+        "the allowed actions are {actions} — 'enable' and 'disable' are deliberately "
+        "unavailable, because they change the configuration permanently"
+    ),
+    "svc.failed": "systemctl --user {action} {name} ended with an error: {detail}",
+    "svc.done": "{action} of the user service {name} completed",
+    # --- potwierdzenia (security/confirm.py) ------------------------------ #
+    "confirm.channel_failed": "the confirmation channel failed ({error})",
+    "confirm.user_refused": "the user refused",
+    "confirm.no_terminal": "stdin is not a terminal — there is nobody to ask",
+    "confirm.cancelled": "cancelled by the user",
+    "confirm.read_failed": "could not read the answer ({error})",
+    "confirm.expired": "the request expired before an answer arrived",
+    "confirm.full_phrase": "the full confirmation phrase",
+    "confirm.no_phrase": "the required confirmation phrase is missing",
+    "confirm.aborted": "cancelled",
+    "confirm.no_channel": "no confirmation channel (running without an interactive terminal)",
+    # --- synteza mowy (audio/tts.py) -------------------------------------- #
+    "tts.rate_mismatch": "The engine returned fragments with different sample rates.",
+    "tts.rate_mismatch_hint": "this is a bug in the speech provider — please report it",
+    "tts.package_failed": "Could not load the piper-tts package ({error}).",
+    "tts.package_hint": "check the onnxruntime installation, or use the `piper` program from PATH",
+    "tts.unknown_chunk": "Unknown chunk format returned by piper-tts: {kind}.",
+    "tts.unknown_chunk_hint": (
+        "update the assistant, or install a piper-tts version matching the documentation"
+    ),
+    "tts.no_voice_class": "The installed piper-tts package does not expose the PiperVoice class.",
+    "tts.voice_load_failed": "Could not load the voice {name} ({error}).",
+    "tts.voice_load_hint": "check the file {path} and its accompanying .onnx.json description",
+    "tts.unsupported_api": "This piper-tts version has an unsupported synthesis API ({error}).",
+    "tts.synthesis_failed": "Speech synthesis failed ({error}).",
+    "tts.details_in_log": "details in logs/errors.log",
+    "tts.spawn_failed": "Could not start the program {path} ({error}).",
+    "tts.spawn_hint": "check PIPER_BINARY in .env, or install the package: pip install piper-tts",
+    "tts.model_mismatch_hint": "check that the voice model matches the piper program version",
+    "tts.nothing_found": "I found neither the 'piper-tts' package nor the 'piper' program.",
+    "tts.nothing_found_hint": (
+        "install the package (pip install piper-tts), or point at the binary in .env: "
+        "PIPER_BINARY=/path/to/piper"
+    ),
+    "tts.no_voices": "I found no Piper voice (.onnx files).",
+    "tts.no_voices_hint": (
+        "download a voice: python scripts/prepare_offline.py --piper, or point at a "
+        "directory in .env: PIPER_VOICES_DIR=..."
+    ),
+    "tts.no_voice_selected": "Could not select a Piper voice.",
+    "tts.no_voice_to_speak": "There is no Piper voice to speak the text with.",
+    "tts.no_voice_to_speak_hint": "download a voice: python scripts/prepare_offline.py --piper",
+    "tts.empty_provider_name": "the speech provider name cannot be empty",
+    "tts.update_package": "update the package: pip install -U piper-tts",
+    "tts.update_assistant": "update the assistant or the piper-tts package",
+    "tts.piper_exit": "The piper program exited with code {code}{detail}",
+    "tts.speech_off": "Turning speech off — answers stay in text (/voice on will try again).",
+    "cli.llm_package_missing": "A package needed to talk to the model is missing ({error}).",
+    "cli.install_deps": "Install the dependencies: {command}",
+    "cli.or_run": "or: {command}",
+    # --- przypomnienia (plugins/reminders/tools.py) ------------------------ #
+    "rem.minutes_positive": "in_minutes must be greater than zero",
+    "rem.need_time": "give in_minutes (in how many minutes) or at (at what time)",
+    "rem.bad_time": "I do not understand the time {value} — use HH:MM, YYYY-MM-DD HH:MM or a full ISO date",
+    "rem.no_storage": "persistent memory is disabled — I have nowhere to save the reminder",
+    "rem.too_far": "a due date further than {days} days ahead — that is surely a mistake",
+    "rem.too_many": (
+        "there are already {limit} active reminders — cancel one (reminders.cancel) "
+        "before adding another"
+    ),
+    "rem.scheduled": "I will remind you: {text} — {when}",
+    "rem.none": "no reminders are scheduled",
+    "rem.not_found": "there is no active reminder with number {id} (check the list: reminders.list)",
+    "rem.cancelled": "cancelled: {description}",
+    # --- notatki (tools/notes.py) ----------------------------------------- #
+    "notes.no_memory": "the assistant's memory is not available",
+    "notes.save_failed": "could not save the note: {error}",
+    "notes.saved": "saved note {id}: {title}",
+    "notes.preview": "would save the note '{title}' ({chars} characters)",
+    "notes.append_failed": "could not append to note {id}",
+    "notes.appended": "appended to note {id} ({chars} characters in total)",
+    "notes.delete_failed": "could not delete note {id}",
+    "notes.deleted": "deleted note {id}: {title}",
+    # --- uruchamianie aplikacji (tools/launcher.py) ----------------------- #
+    "app.not_found": (
+        "I could not find the application '{name}'. Examples of installed ones: "
+        "{examples} (app.list gives the full list)"
+    ),
+    "app.process_summary": "{count} processes; largest: {largest}",
+    # --- krótkie etykiety narzędzi (pole summary w ToolSpec) -------------- #
+    "spec.fs_list": "directory contents (read-only)",
+    "spec.fs_roots": "directories the file tools may access",
+    "spec.fs_search": "searching files by name and content",
+    "spec.ha_list": "Show the Home Assistant entities.",
+    "spec.ha_switch": "Turn a Home Assistant device on or off.",
+    "spec.news_headlines": "latest headlines from the RSS feeds",
+    "spec.news_search": "searching the news for a topic",
+    "spec.notes_delete": "deleting a note (requires consent)",
+    "spec.open_path": "opening a file with the default program",
+    "spec.open_url": "opening an address in the browser",
+    "spec.proc_kill": "closing a program (requires consent)",
+    "spec.proc_list": "list of processes (read-only)",
+    "spec.rem_cancel": "Cancel a scheduled reminder.",
+    "spec.rem_list": "Show the scheduled reminders.",
+    "spec.svc_control": "start/stop/restart of a user service (requires consent)",
+    "spec.svc_list": "user services (read-only)",
+    "spec.svc_status": "state of a user service",
+    "spec.web_fetch": "fetching a page's content for summarising",
+    "spec.yt_search": "searching for videos on YouTube",
+    # --- Home Assistant (plugins/home_assistant/) -------------------------- #
+    "ha.bad_url": "the address {url} does not look like a Home Assistant address",
+    "ha.bad_url_hint": "a correct example: http://homeassistant.local:8123",
+    "ha.timeout": "Home Assistant did not answer within {seconds} s",
+    "ha.timeout_hint": "check that the server is running and that the address is correct",
+    "ha.connect_failed": "I cannot connect to Home Assistant ({error})",
+    "ha.connect_hint": "check the address {url} and whether the server is on this network",
+    "ha.bad_token": "Home Assistant rejected the token",
+    "ha.bad_token_hint": (
+        "generate a new long-lived access token and put it in HOME_ASSISTANT_TOKEN"
+    ),
+    "ha.not_found": "Home Assistant does not know that entity or service",
+    "ha.not_found_hint": "check the identifier (ha.list shows the available entities)",
+    "ha.server_error": "Home Assistant reported a server error ({status})",
+    "ha.server_error_hint": "look into the Home Assistant logs",
+    "ha.rejected": "Home Assistant rejected the request ({status})",
+    "ha.too_large": "the Home Assistant response is too large to process",
+    "ha.too_large_hint": "narrow the query (e.g. give a domain in ha.list)",
+    "ha.bad_response": "Home Assistant returned a response I cannot read",
+    "ha.bad_response_hint": "is there really a Home Assistant at that address?",
+    "ha.unexpected_entity": "unexpected response for entity {entity}",
+    "ha.unexpected_list": "unexpected response for the entity list",
+    # --- pluginy (plugins/manager.py) -------------------------------------- #
+    "plug.import_failed": "I cannot import the plugin from {path}",
+    "plug.bad_contract": "the plugin {name} does not meet the contract (missing info/tools/available/poll)",
+    "plug.bad_contract_hint": "the simplest way is to inherit from plugins.manager.BasePlugin",
+    "plug.disabled": "disabled (PLUGINS_ENABLED=false)",
+    "plug.disabled_hint": "set PLUGINS_ENABLED=true to load the extensions from plugins/",
+    "plug.layer_unavailable": "the plugin layer is unavailable ({error})",
+    # --- konfiguracja (config.py) ------------------------------------------ #
+    "cfg.bad_ollama_host": "OLLAMA_HOST must start with http:// or https:// (received: {value})",
+    "cfg.empty_value": "the value cannot be empty",
+    "cfg.device_by_name": (
+        "{field} must be a fragment of the device NAME, not an index — indexes mean "
+        "different hardware on every computer"
+    ),
+    "cfg.bad_log_level": "LOG_LEVEL must be one of: {allowed}",
+    "cfg.fix_env": "correct the file {path}, or compare it with .env.example",
+    "cfg.bad_env_values": "Invalid values in the .env file:\n{details}",
+    "cfg.bad_config_values": "Invalid configuration values:\n{details}",
+    "cfg.not_saved": "Settings were not saved — invalid values:\n{details}",
+    "cfg.check_env_vars": "check the application's environment variables",
+    "cfg.empty_assistant_name": "assistant_name cannot be empty",
+    "cfg.check_saved_values": "check the values passed to save_user_settings(), or the file {path}",
+    "cfg.write_failed": "Could not write the file {path}: {error}",
+    "cfg.write_hint": "check the permissions of the configuration directory",
+    # --- pozostałe narzędzia ------------------------------------------------ #
+    "yt.no_video_id": "I could not find a video identifier in '{value}'",
+    "yt.no_results": "I found no videos for '{query}'",
+    "yt.results": "'{query}': {count} videos — {names}",
+    "yt.no_transcript": (
+        "the video {id} has no subtitles available (the author may have disabled them — "
+        "then the content cannot be read)"
+    ),
+    "yt.transcript": "transcript {id}: {chars} characters",
+    "news.feed_error": "feed {name}: {error}",
+    "news.no_feeds": "no news feeds are configured (NEWS_FEEDS)",
+    "news.headlines": "{count} headlines — {sources}",
+    "news.search_results": "'{query}': {count} items — {sources}",
+    "web.no_results": (
+        "the search engine returned no results for '{query}' (or changed its page "
+        "format — web.fetch helps then)"
+    ),
+    "web.results": "'{query}': {count} results — {hosts}",
+    "web.no_text": (
+        "there is no text to read at {url} (the page may require JavaScript or a "
+        "cookie consent)"
+    ),
+    "tts.nothing_to_save": "There is nothing to save — synthesis returned no audio.",
+    "tts.save_failed": "Could not write the file {path} ({error}).",
+    "tts.save_hint": "check the permissions of the directory",
+    "policy.critical_disabled": "CRITICAL-risk tools are disabled (SECURITY_ALLOW_CRITICAL=false)",
+    "pdf.no_library": "no library for reading PDFs — install pypdf (pip install pypdf)",
+    "pdf.open_failed": "could not open the PDF '{path}': {error}",
+    "pdf.no_text": (
+        "'{path}' contains no text to read (it may be a scan — that would need OCR, "
+        "which the assistant does not have)"
+    ),
+    "weather.place_not_found": "I could not find a place called '{name}'",
+    "weather.no_current": "the weather service returned no current measurements",
+    "weather.no_forecast": "the weather service returned no forecast",
+    "mem.pattern_matched": "a recognised sentence pattern about the user",
+    "mem.preference": "a statement about preferences",
+    "mem.not_key_value": "the content does not reduce to a key-value pair",
+    # --- uruchamianie aplikacji i otwieranie (host/apps.py) --------------- #
+    "launch.failed": "could not launch: {error}",
+    "launch.no_session": (
+        "this machine has no graphical session — there is nowhere to show an application window"
+    ),
+    "launch.unknown": "I do not know how to launch '{name}'",
+    "launch.unknown_no_exec": (
+        "I do not know how to launch '{name}' — no gio, no xdg-open and no Exec command "
+        "in the .desktop file"
+    ),
+    "launch.no_opener": "this system has no shell mechanism for opening files",
+    "launch.open_failed": "could not open: {error}",
+    "launch.no_session_url": "this machine has no graphical session — there is nothing to open the address with",
+    "launch.no_browser": (
+        "I could not find a program to open this address with (no xdg-open, no gio and "
+        "no browser in the BROWSER variable)"
+    ),
+    "launch.started": "launched {name} ({how})",
+    "launch.opened": "opened '{target}' ({how})",
+    "launch.how_start_menu": "a Start Menu shortcut",
+    "launch.how_default": "the system's default program",
+    "launch.how_stdlib": "the standard library mechanism",
+    # --- rekordy bazy (database/models.py) -------------------------------- #
+    "rec.fact_key_empty": "a fact key cannot be empty",
+    "rec.fact_value_empty": "a fact value cannot be empty",
+    "rec.pref_key_empty": "a preference key cannot be empty",
+    "rec.pref_value_empty": "a preference value cannot be empty",
+    "rec.note_body_empty": "a note body cannot be empty",
+    # --- treść stron i kanałów (tools/webtext.py) ------------------------- #
+    "content.unreadable": "could not read the page content",
+    "content.empty_feed": "the feed is empty",
+    "content.xml_entities": "the feed declares an XML entity (DOCTYPE/ENTITY) — I am not processing it",
+    "content.bad_xml": "the feed is not valid XML ({error})",
+    "content.no_entries": "the feed has no entries",
+    # --- okno rozmowy (brain/conversation.py) ----------------------------- #
+    "conv.min_messages": "max_messages must be at least 2",
+    "conv.min_chars": "max_chars must be at least 100",
+    "conv.trim_ratio_range": "trim_ratio must lie in the range 0.25–1.0",
+    "cfg.sample_rate_positive": "the sample rate must be positive",
+    "ha.bad_entity_id": "an entity identifier has the form domain.name, e.g. light.livingroom",
+    "ha.no_entities": "Home Assistant returned no entities{detail}",
+    "rem.needs_db": "reminders require a working database",
+    "rem.table_failed": "I cannot prepare the reminders table ({error})",
+    "rem.save_failed": "could not save the reminder ({error})",
+    "sandbox.timeout": "the tool {tool} did not answer within {seconds} s",
+    "sandbox.failed": "the tool {tool} failed: {error}",
+    "sandbox.bad_result": "the tool returned a result in an unknown format",
+    "out.no_package": "The 'sounddevice' package is not installed — playback is off.",
+    "out.portaudio_failed": "Could not load the PortAudio library ({error}).",
+    "vec.dim_mismatch": "the vector has {actual} dimensions, the index expects {expected}",
+    "proc.backend_psutil": "psutil (name, owner, memory)",
+    "proc.backend_none": "none — the process tools are unavailable",
+    "reg.bad_tool_name": "the tool name '{name}' must have the form area.action (lowercase)",
+    "reg.duplicate_tool": "the tool '{name}' is already registered",
+    "svc.summary": "{count} user services, active: {active}",
+    "tool.dry_run": "[dry run] {preview}",
+    "policy.budget_spent": (
+        "the budget of {limit} tool calls for this turn is used up (TOOLS_MAX_CALLS_PER_TURN)"
+    ),
+    "deps.device_no_match": "no device matching '{name}' was found; available: {devices}",
+    "pdf.summary": "{path}: {pages} of {total} pages, {chars} characters",
+    "emb.download_hint": (
+        "fetch it in advance: python scripts/prepare_offline.py --embeddings "
+        "(downloading is blocked by OFFLINE_MODE or EMBEDDING_ALLOW_DOWNLOAD=false)"
+    ),
     "pipe.default_device": "default device",
     "pipe.describe_wake": "wake \u201c{phrase}\u201d ({engine})",
     "pipe.wake_disabled": "off",
@@ -1929,6 +2423,500 @@ _PL: Final[dict[str, str]] = {
     "stt.details_in_log": "szczegóły w logs/errors.log",
     "vad.bad_sample_rate": "webrtcvad obsługuje wyłącznie {supported} Hz, a ustawiono {actual} Hz",
     "vad.bad_frame_ms": "webrtcvad obsługuje ramki {supported} ms, a ustawiono {actual} ms",
+    # --- sieć (host/http.py) ---------------------------------------------- #
+    "net.bad_scheme": "schemat '{scheme}' nie jest obsługiwany — wolno tylko http i https",
+    "net.bad_url": "adres '{url}' jest nieprawidłowy",
+    "net.credentials_in_url": "adres z loginem i hasłem nie jest obsługiwany",
+    "net.bad_port": "port {port} nie jest portem WWW — nie łączę się z usługami innego rodzaju",
+    "net.local_address": (
+        "'{host}' to adres lokalny — narzędzia sieciowe nie łączą się z tą maszyną "
+        "ani z siecią lokalną"
+    ),
+    "net.bad_hostname": "'{host}' nie wygląda na poprawną nazwę hosta",
+    "net.private_address": (
+        "'{host}' wskazuje na adres {address}, który nie jest publicznym adresem "
+        "internetowym (sieć lokalna, ta maszyna albo metadane usługi chmurowej)"
+    ),
+    "net.offline": "asystent pracuje w trybie offline, więc nie sięga do internetu",
+    "net.offline_hint": "ustaw OFFLINE_MODE=off, jeśli chcesz pozwolić na dostęp do sieci",
+    "net.dns_failed": "nie udało się rozwiązać nazwy '{host}'",
+    "net.dns_hint": "sprawdź połączenie z internetem albo poprawność adresu",
+    "net.bad_json": "odpowiedź z {host} nie jest poprawnym JSON-em",
+    "net.bad_json_hint": "serwer mógł zwrócić stronę błędu zamiast danych",
+    "net.timeout": "serwer {host} nie odpowiedział w {seconds} s",
+    "net.timeout_hint": "spróbuj ponownie albo sprawdź połączenie",
+    "net.too_many_redirects": "zbyt wiele przekierowań",
+    "net.connect_failed": "nie udało się połączyć z {host}",
+    "net.connect_hint": "sprawdź połączenie z internetem",
+    "net.redirect_limit": "przekroczono limit {count} przekierowań",
+    "net.redirect_loop": "strona przekierowuje w kółko albo prosi o zgodę na ciasteczka",
+    "net.not_text": "treść typu '{content_type}' nie jest tekstem — nie pobieram jej",
+    "net.not_text_hint": "to narzędzie czyta strony i dane tekstowe, nie pliki binarne",
+    "net.too_large": "zasób ma {size} kB, a limit to {limit} kB",
+    "net.too_large_hint": "podaj adres konkretnej podstrony zamiast całego archiwum",
+    "net.http_status": "serwer {host} odpowiedział kodem {status}",
+    "net.no_hostname": "adres '{url}' nie ma nazwy hosta",
+    "net.offline_tools_off": (
+        "asystent pracuje w trybie offline (OFFLINE_MODE=on) — narzędzia sieciowe "
+        "są wyłączone; wszystko lokalne działa dalej"
+    ),
+    # --- baza pamięci (database/database.py) ------------------------------ #
+    "db.mkdir_failed": "Nie mogę utworzyć katalogu na bazę pamięci: {error}",
+    "db.mkdir_hint": (
+        "wskaż inne miejsce zmienną MIKU_DATA_DIR albo wpisem DATABASE_PATH w .env, "
+        "albo wyłącz pamięć: MEMORY_ENABLED=false"
+    ),
+    "db.open_failed": "Nie mogę otworzyć bazy pamięci: {path} ({error})",
+    "db.open_hint": (
+        "sprawdź prawa zapisu do katalogu, wskaż inny ścieżką DATABASE_PATH w .env "
+        "albo wyłącz pamięć: MEMORY_ENABLED=false"
+    ),
+    "db.schema_failed": "Nie udało się przygotować schematu bazy: {error}",
+    "db.schema_hint": (
+        "plik bazy: {path} — jeśli jest uszkodzony, przenieś go na bok; asystent "
+        "założy nowy (pamięć zostanie utracona)"
+    ),
+    "db.closed": "Baza pamięci jest już zamknięta.",
+    "db.busy": "Baza pamięci jest zajęta przez inny proces.",
+    "db.busy_hint": "zamknij drugą instancję asystenta albo zwiększ DATABASE_TIMEOUT_S w .env",
+    "db.readonly": "Baza pamięci jest tylko do odczytu: {error}",
+    "db.readonly_hint": "sprawdź prawa zapisu albo wskaż inne miejsce zmienną MIKU_DATA_DIR",
+    "db.generic_error": "Błąd bazy pamięci: {error}",
+    "db.details_in_log": "szczegóły w logs/errors.log",
+    "db.disabled": "wyłączona ustawieniem MEMORY_ENABLED=false",
+    "db.disabled_hint": "ustaw MEMORY_ENABLED=true, aby asystent pamiętał między uruchomieniami",
+    "db.in_memory_only": (
+        "baza wyłącznie w pamięci procesu (DATABASE_PATH=:memory:) — nic nie przetrwa "
+        "zamknięcia programu"
+    ),
+    # --- model językowy (brain/llm.py) ------------------------------------ #
+    "llm.connect_failed": "Nie mogę połączyć się z Ollamą pod adresem {host}.",
+    "llm.connect_hint": (
+        "sprawdź, czy usługa działa (`ollama serve`) i czy OLLAMA_HOST w .env jest poprawny"
+    ),
+    "llm.timeout": "Model nie odpowiedział w wyznaczonym czasie ({seconds} s).",
+    "llm.timeout_hint": "zwiększ OLLAMA_READ_TIMEOUT w .env albo wybierz mniejszy model",
+    "llm.model_missing": "Model '{model}' nie jest dostępny w Ollamie.",
+    "llm.http_error": "Ollama zwróciła błąd HTTP {status}: {body}",
+    "llm.bad_json": "Ollama zwróciła odpowiedź, której nie da się odczytać jako JSON.",
+    "llm.details_in_log": "szczegóły w logs/errors.log",
+    "llm.no_details": "brak szczegółów",
+    "llm.pull_hint": "pobierz go poleceniem: ollama pull {model}",
+    # --- embeddingi (brain/embeddings.py) --------------------------------- #
+    "emb.no_package_hint": (
+        "zainstaluj go (pip install sentence-transformers) albo przełącz się na "
+        "embeddingi z Ollamy: EMBEDDING_ENGINE=ollama"
+    ),
+    "emb.model_missing": "Modelu embeddingów '{model}' nie ma na dysku, a pobieranie jest wyłączone.",
+    "emb.load_failed": "Nie udało się wczytać modelu embeddingów '{model}': {error}",
+    "emb.load_hint": (
+        "sprawdź połączenie albo pobierz model zawczasu: "
+        "python scripts/prepare_offline.py --embeddings"
+    ),
+    "emb.not_loaded": "Model embeddingów nie został załadowany.",
+    "emb.compute_failed": "Liczenie embeddingów nie powiodło się: {error}",
+    "emb.details_in_log": "szczegóły w logs/errors.log",
+    "emb.no_httpx": "Brak pakietu httpx potrzebnego do rozmowy z Ollamą ({error}).",
+    "emb.ollama_failed": "Nie mogę policzyć embeddingów przez Ollamę pod {host}.",
+    "emb.ollama_hint": (
+        "sprawdź, czy usługa działa (`ollama serve`) i czy model jest pobrany: "
+        "ollama pull {model}"
+    ),
+    "emb.no_embeddings_field": "Ollama zwróciła odpowiedź bez embeddingów.",
+    "emb.no_embeddings_hint": "sprawdź, czy model '{model}' w ogóle liczy embeddingi",
+    "emb.no_embedding_field": "Ollama zwróciła odpowiedź bez embeddingu.",
+    "emb.ollama_model_missing": "Ollama nie ma modelu embeddingów '{model}'.",
+    "emb.ollama_http": "Ollama zwróciła HTTP {status}: {body}",
+    "emb.no_package": "Pakiet sentence-transformers nie jest zainstalowany.",
+    "emb.pull_hint": "pobierz go: ollama pull {model}",
+    # --- ścieżki (host/paths.py) ------------------------------------------ #
+    "path.empty": "nie podano ścieżki",
+    "path.outside": (
+        "ścieżka '{path}' jest poza dozwolonymi katalogami ({roots}). Dostęp poza "
+        "nie jest możliwy — także przez '..' i dowiązania symboliczne."
+    ),
+    "path.missing": (
+        "nie ma takiej ścieżki: {path}. Ścieżki podawaj względem dozwolonego "
+        "katalogu (np. 'plan.txt', 'notatki/rower.md'); '.' oznacza sam katalog. "
+        "Listę katalogów da narzędzie fs.roots."
+    ),
+    "path.not_a_file": "to nie jest plik: {path}",
+    "path.not_a_dir": "to nie jest katalog: {path}",
+    "path.read_failed": "nie udało się odczytać pliku: {error}",
+    "path.list_failed": "nie udało się odczytać katalogu: {error}",
+    # --- uruchamianie programów (host/shell.py) --------------------------- #
+    "shell.path_not_name": "podaj nazwę programu z listy dozwolonych, nie ścieżkę ('{raw}')",
+    "shell.hard_blocked": (
+        "program '{name}' jest zablokowany na stałe (podnoszenie uprawnień, "
+        "operacje na nośnikach albo zmiany systemowe)"
+    ),
+    "shell.disabled": (
+        "uruchamianie programów jest wyłączone — lista SHELL_ALLOWED_BINARIES jest pusta"
+    ),
+    "shell.not_allowed": "program '{name}' nie jest na liście SHELL_ALLOWED_BINARIES ({allowed})",
+    "shell.not_found": "nie znalazłam programu '{name}' w PATH tej maszyny",
+    "shell.inline_flag": (
+        "flaga '{flag}' uruchamia dowolny tekst w powłoce i jest zablokowana. "
+        "Uruchom program wprost, z argumentami — potoki i przekierowania nie są "
+        "obsługiwane (i to jest celowe)."
+    ),
+    "shell.metacharacter": (
+        "argument '{argument}' zawiera znak powłoki '{character}'. Program jest "
+        "uruchamiany BEZ powłoki, więc taki znak nie zadziała — a wygląda na próbę "
+        "wstrzyknięcia polecenia."
+    ),
+    "shell.timeout": "program '{name}' nie zakończył się w {seconds} s — przerwany",
+    "shell.spawn_failed": "nie udało się uruchomić '{name}': {error}",
+    # --- narzędzia plikowe (tools/filesystem.py) -------------------------- #
+    "fs.listing": "{path}: {count} wpisów",
+    "fs.binary": "'{path}' wygląda na plik binarny — nie czytam go jako tekst",
+    "fs.search_hits": "'{query}': {count} trafień w {path}",
+    "fs.dir_exists": "katalog {path} już istnieje",
+    "fs.dir_created": "utworzono katalog {path}",
+    "fs.mkdir_failed": "nie udało się utworzyć katalogu: {error}",
+    "fs.too_large": "treść ma {size} B, a limit zapisu to {limit} B",
+    "fs.is_a_directory": "'{path}' jest katalogiem",
+    "fs.file_exists": (
+        "plik {path} już istnieje — użyj mode='overwrite' albo mode='append' "
+        "(wymaga potwierdzenia użytkownika)"
+    ),
+    "fs.write_failed": "nie udało się zapisać pliku: {error}",
+    "fs.no_move_root": "nie przenoszę katalogu, który jest dozwolonym obszarem roboczym",
+    "fs.move_failed": "nie udało się przenieść: {error}",
+    "fs.no_delete_root": (
+        "'{path}' jest dozwolonym katalogiem roboczym — nie usuwam całego obszaru, "
+        "nawet z potwierdzeniem"
+    ),
+    "fs.need_recursive": (
+        "'{path}' jest katalogiem — żeby usunąć go razem z zawartością, podaj "
+        "recursive=true (wymaga potwierdzenia użytkownika)"
+    ),
+    "fs.too_many_entries": (
+        "katalog zawiera więcej niż {limit} wpisów ({files} plików, {directories} "
+        "podkatalogów) — nie usuwam go jednym wywołaniem. Usuń zawartość mniejszymi "
+        "porcjami."
+    ),
+    "fs.rmtree_failed": "nie udało się usunąć katalogu: {error}",
+    "fs.dir_deleted": "usunięto katalog {path} ({files} plików, {directories} podkatalogów)",
+    "fs.unlink_failed": "nie udało się usunąć pliku: {error}",
+    "fs.file_deleted": "usunięto plik {path}",
+    # --- słowo aktywujące (audio/wakeword.py) ----------------------------- #
+    "wake.empty_phrase": "Fraza wybudzająca jest pusta.",
+    "wake.empty_phrase_hint": "ustaw pole wake_word w config/user_settings.json",
+    "wake.no_words": "Fraza wybudzająca {phrase} nie zawiera żadnego słowa.",
+    "wake.no_words_hint": "użyj liter, np. \u201ehej miku\u201d",
+    "wake.no_model": "Nie wskazano modelu openWakeWord.",
+    "wake.no_model_hint": (
+        "wpisz ścieżkę w wake_word_model (config/user_settings.json) albo wrzuć plik "
+        "modelu do {directory}"
+    ),
+    "wake.no_package": "Pakiet 'openwakeword' nie jest zainstalowany.",
+    "wake.no_package_hint": "pip install openwakeword albo zostaw WAKE_ENGINE=auto",
+    "wake.load_failed": "Nie udało się wczytać modelu openWakeWord ({error}).",
+    "wake.load_hint": "sprawdź plik modelu i instalację onnxruntime",
+    "wake.needs_transcribe": "Detektor whisperowy wymaga funkcji transkrypcji.",
+    "wake.needs_transcribe_hint": (
+        "potok audio wstrzykuje ją sam — ten błąd oznacza błędne użycie API"
+    ),
+    # --- wyjście audio (audio/output.py) ---------------------------------- #
+    "out.devices_failed": "Nie udało się odczytać listy urządzeń audio ({error}).",
+    "out.sound_server_hint": (
+        "sprawdź, czy serwer dźwięku działa (PipeWire/PulseAudio/WASAPI/CoreAudio)"
+    ),
+    "out.none_reported": "System nie zgłasza żadnego urządzenia wyjściowego (głośnika).",
+    "out.none_reported_hint": (
+        "podłącz głośnik albo wyłącz mowę: voice_engine w config/user_settings.json"
+    ),
+    "out.not_matched": "Nie znaleziono głośnika pasującego do '{name}'.",
+    "out.available_devices": "dostępne urządzenia: {devices}",
+    "out.open_failed": "Nie udało się otworzyć wyjścia audio{error}",
+    "out.open_failed_hint": (
+        "sprawdź, czy serwer dźwięku działa i czy urządzenie nie jest zajęte"
+    ),
+    # --- procesy (host/processes.py) -------------------------------------- #
+    "proc.system_process": "proces {pid} to proces systemowy — nie zamykam go w żadnym wypadku",
+    "proc.protected": (
+        "proces '{name}' jest na liście chronionych (system, sesja, dźwięk) — "
+        "zamknięcie go zerwałoby sesję użytkownika"
+    ),
+    "proc.self": "to proces samego asystenta — nie zamykam siebie",
+    "proc.parent": (
+        "to proces nadrzędny asystenta (zwykle terminal) — zamknięcie go zamknęłoby "
+        "rozmowę"
+    ),
+    "proc.other_user": (
+        "proces {pid} należy do innego użytkownika — zamknięcie wymagałoby uprawnień "
+        "administratora, a na nich narzędzia nie działają"
+    ),
+    "proc.already_gone": "proces {pid} zdążył się zakończyć",
+    "proc.no_permission": "brak uprawnień do zamknięcia procesu {pid} — należy do innego użytkownika",
+    "proc.kill_failed": "nie udało się zamknąć procesu {pid}: {error}",
+    "proc.forced": "wymuszone zamknięcie",
+    "proc.requested": "prośba o zamknięcie",
+    "proc.result": "{how} procesu {name} (PID {pid})",
+    # --- usługi użytkownika (host/services.py) ---------------------------- #
+    "svc.timeout": "systemctl nie odpowiedział w wyznaczonym czasie",
+    "svc.call_failed": "nie udało się wywołać systemctl: {error}",
+    "svc.no_name": "nie podano nazwy usługi",
+    "svc.bad_name": (
+        "'{name}' nie wygląda na nazwę usługi systemd (dozwolone: litery, cyfry, "
+        "kropka, kreska, podkreślenie, @)"
+    ),
+    "svc.bad_action": (
+        "dozwolone działania to {actions} — 'enable' i 'disable' są świadomie "
+        "niedostępne, bo zmieniają konfigurację na stałe"
+    ),
+    "svc.failed": "systemctl --user {action} {name} zakończyło się błędem: {detail}",
+    "svc.done": "{action} usługi użytkownika {name} wykonane",
+    # --- potwierdzenia (security/confirm.py) ------------------------------ #
+    "confirm.channel_failed": "kanał potwierdzeń zawiódł ({error})",
+    "confirm.user_refused": "użytkownik odmówił",
+    "confirm.no_terminal": "stdin nie jest terminalem — nie ma kogo zapytać",
+    "confirm.cancelled": "anulowane przez użytkownika",
+    "confirm.read_failed": "nie udało się odczytać odpowiedzi ({error})",
+    "confirm.expired": "żądanie straciło ważność przed odpowiedzią",
+    "confirm.full_phrase": "pełna fraza potwierdzenia",
+    "confirm.no_phrase": "brak wymaganej frazy potwierdzenia",
+    "confirm.aborted": "anulowane",
+    "confirm.no_channel": "brak kanału potwierdzeń (praca bez interaktywnego terminala)",
+    # --- synteza mowy (audio/tts.py) -------------------------------------- #
+    "tts.rate_mismatch": "Silnik zwrócił fragmenty o różnych częstotliwościach próbkowania.",
+    "tts.rate_mismatch_hint": "to błąd implementacji dostawcy mowy — zgłoś go",
+    "tts.package_failed": "Nie udało się załadować pakietu piper-tts ({error}).",
+    "tts.package_hint": "sprawdź instalację onnxruntime albo użyj programu `piper` z PATH",
+    "tts.unknown_chunk": "Nieznany format fragmentu zwrócony przez piper-tts: {kind}.",
+    "tts.unknown_chunk_hint": (
+        "zaktualizuj asystenta albo zainstaluj wersję pakietu piper-tts zgodną "
+        "z dokumentacją"
+    ),
+    "tts.no_voice_class": "Zainstalowany pakiet piper-tts nie udostępnia klasy PiperVoice.",
+    "tts.voice_load_failed": "Nie udało się wczytać głosu {name} ({error}).",
+    "tts.voice_load_hint": "sprawdź plik {path} i towarzyszący mu opis .onnx.json",
+    "tts.unsupported_api": "Wersja pakietu piper-tts ma nieobsługiwane API syntezy ({error}).",
+    "tts.synthesis_failed": "Synteza mowy nie powiodła się ({error}).",
+    "tts.details_in_log": "szczegóły w logs/errors.log",
+    "tts.spawn_failed": "Nie udało się uruchomić programu {path} ({error}).",
+    "tts.spawn_hint": "sprawdź PIPER_BINARY w .env albo zainstaluj pakiet: pip install piper-tts",
+    "tts.model_mismatch_hint": "sprawdź, czy model głosu pasuje do wersji programu piper",
+    "tts.nothing_found": "Nie znalazłem ani pakietu 'piper-tts', ani programu 'piper'.",
+    "tts.nothing_found_hint": (
+        "zainstaluj pakiet (pip install piper-tts) albo wskaż binarkę w .env: "
+        "PIPER_BINARY=/ścieżka/do/piper"
+    ),
+    "tts.no_voices": "Nie znalazłem żadnego głosu Pipera (plików .onnx).",
+    "tts.no_voices_hint": (
+        "pobierz głos: python scripts/prepare_offline.py --piper, albo wskaż katalog "
+        "w .env: PIPER_VOICES_DIR=..."
+    ),
+    "tts.no_voice_selected": "Nie udało się wybrać głosu Pipera.",
+    "tts.no_voice_to_speak": "Nie ma żadnego głosu Pipera do wypowiedzenia tekstu.",
+    "tts.no_voice_to_speak_hint": "pobierz głos: python scripts/prepare_offline.py --piper",
+    "tts.empty_provider_name": "nazwa dostawcy mowy nie może być pusta",
+    "tts.update_package": "zaktualizuj pakiet: pip install -U piper-tts",
+    "tts.update_assistant": "zaktualizuj asystenta albo pakiet piper-tts",
+    "tts.piper_exit": "Program piper zakończył się kodem {code}{detail}",
+    "tts.speech_off": "Wyłączam mowę — odpowiedzi zostają tekstowe (/glos on spróbuje ponownie).",
+    "cli.llm_package_missing": "Brakuje pakietu wymaganego do rozmowy z modelem ({error}).",
+    "cli.install_deps": "Zainstaluj zależności: {command}",
+    "cli.or_run": "albo: {command}",
+    # --- przypomnienia (plugins/reminders/tools.py) ------------------------ #
+    "rem.minutes_positive": "in_minutes musi być większe od zera",
+    "rem.need_time": "podaj in_minutes (za ile minut) albo at (o której)",
+    "rem.bad_time": "nie rozumiem terminu {value} — użyj HH:MM, YYYY-MM-DD HH:MM albo pełnej daty ISO",
+    "rem.no_storage": "pamięć trwała jest wyłączona — nie mam gdzie zapisać przypomnienia",
+    "rem.too_far": "termin dalej niż {days} dni — to na pewno pomyłka",
+    "rem.too_many": (
+        "jest już {limit} aktywnych przypomnień — odwołaj któreś (reminders.cancel), "
+        "zanim dołożysz kolejne"
+    ),
+    "rem.scheduled": "przypomnę: {text} — {when}",
+    "rem.none": "brak zaplanowanych przypomnień",
+    "rem.not_found": "nie ma aktywnego przypomnienia o numerze {id} (sprawdź listę: reminders.list)",
+    "rem.cancelled": "odwołane: {description}",
+    # --- notatki (tools/notes.py) ----------------------------------------- #
+    "notes.no_memory": "pamięć asystenta nie jest dostępna",
+    "notes.save_failed": "nie udało się zapisać notatki: {error}",
+    "notes.saved": "zapisano notatkę {id}: {title}",
+    "notes.preview": "zapisałoby notatkę '{title}' ({chars} znaków)",
+    "notes.append_failed": "nie udało się dopisać do notatki {id}",
+    "notes.appended": "dopisano do notatki {id} ({chars} znaków razem)",
+    "notes.delete_failed": "nie udało się usunąć notatki {id}",
+    "notes.deleted": "usunięto notatkę {id}: {title}",
+    # --- uruchamianie aplikacji (tools/launcher.py) ----------------------- #
+    "app.not_found": (
+        "nie znalazłam aplikacji '{name}'. Przykłady zainstalowanych: {examples} "
+        "(pełną listę da app.list)"
+    ),
+    "app.process_summary": "{count} procesów; największe: {largest}",
+    # --- krótkie etykiety narzędzi (pole summary w ToolSpec) -------------- #
+    "spec.fs_list": "zawartość katalogu (tylko odczyt)",
+    "spec.fs_roots": "dozwolone katalogi narzędzi plikowych",
+    "spec.fs_search": "szukanie plików po nazwie i treści",
+    "spec.ha_list": "Pokaż encje Home Assistanta.",
+    "spec.ha_switch": "Włącz lub wyłącz urządzenie w Home Assistancie.",
+    "spec.news_headlines": "najnowsze nagłówki z kanałów RSS",
+    "spec.news_search": "szukanie wiadomości na temat",
+    "spec.notes_delete": "usunięcie notatki (wymaga zgody)",
+    "spec.open_path": "otwarcie pliku programem domyślnym",
+    "spec.open_url": "otwarcie adresu w przeglądarce",
+    "spec.proc_kill": "zamknięcie programu (wymaga zgody)",
+    "spec.proc_list": "lista procesów (tylko odczyt)",
+    "spec.rem_cancel": "Odwołaj zaplanowane przypomnienie.",
+    "spec.rem_list": "Pokaż zaplanowane przypomnienia.",
+    "spec.svc_control": "start/stop/restart usługi użytkownika (wymaga zgody)",
+    "spec.svc_list": "usługi użytkownika (tylko odczyt)",
+    "spec.svc_status": "stan usługi użytkownika",
+    "spec.web_fetch": "pobranie treści strony do streszczenia",
+    "spec.yt_search": "szukanie filmów na YouTube",
+    # --- Home Assistant (plugins/home_assistant/) -------------------------- #
+    "ha.bad_url": "adres {url} nie wygląda na adres Home Assistanta",
+    "ha.bad_url_hint": "poprawny przykład: http://homeassistant.local:8123",
+    "ha.timeout": "Home Assistant nie odpowiedział w ciągu {seconds} s",
+    "ha.timeout_hint": "sprawdź, czy serwer działa i czy adres jest poprawny",
+    "ha.connect_failed": "nie mogę połączyć się z Home Assistantem ({error})",
+    "ha.connect_hint": "sprawdź adres {url} i czy serwer jest w tej sieci",
+    "ha.bad_token": "Home Assistant odrzucił token",
+    "ha.bad_token_hint": (
+        "wygeneruj nowy long-lived access token i wpisz go do HOME_ASSISTANT_TOKEN"
+    ),
+    "ha.not_found": "Home Assistant nie zna takiej encji ani usługi",
+    "ha.not_found_hint": "sprawdź identyfikator (ha.list pokaże dostępne encje)",
+    "ha.server_error": "Home Assistant zgłosił błąd serwera ({status})",
+    "ha.server_error_hint": "zajrzyj do logów Home Assistanta",
+    "ha.rejected": "Home Assistant odrzucił żądanie ({status})",
+    "ha.too_large": "odpowiedź Home Assistanta jest za duża, żeby ją przetworzyć",
+    "ha.too_large_hint": "zawęź zapytanie (np. podaj domenę w ha.list)",
+    "ha.bad_response": "Home Assistant zwrócił odpowiedź, której nie umiem odczytać",
+    "ha.bad_response_hint": "czy pod tym adresem na pewno stoi Home Assistant?",
+    "ha.unexpected_entity": "nieoczekiwana odpowiedź dla encji {entity}",
+    "ha.unexpected_list": "nieoczekiwana odpowiedź na listę encji",
+    # --- pluginy (plugins/manager.py) -------------------------------------- #
+    "plug.import_failed": "nie umiem zaimportować pluginu z {path}",
+    "plug.bad_contract": "plugin {name} nie spełnia kontraktu (brakuje info/tools/available/poll)",
+    "plug.bad_contract_hint": "najprościej odziedziczyć po plugins.manager.BasePlugin",
+    "plug.disabled": "wyłączone (PLUGINS_ENABLED=false)",
+    "plug.disabled_hint": "ustaw PLUGINS_ENABLED=true, żeby wczytać rozszerzenia z plugins/",
+    "plug.layer_unavailable": "warstwa pluginów niedostępna ({error})",
+    # --- konfiguracja (config.py) ------------------------------------------ #
+    "cfg.bad_ollama_host": "OLLAMA_HOST musi zaczynać się od http:// lub https:// (otrzymano: {value})",
+    "cfg.empty_value": "wartość nie może być pusta",
+    "cfg.device_by_name": (
+        "{field} musi być fragmentem NAZWY urządzenia, nie indeksem — indeksy oznaczają "
+        "inny sprzęt na każdym komputerze"
+    ),
+    "cfg.bad_log_level": "LOG_LEVEL musi być jednym z: {allowed}",
+    "cfg.fix_env": "popraw plik {path} albo porównaj go z .env.example",
+    "cfg.bad_env_values": "Nieprawidłowe wartości w pliku .env:\n{details}",
+    "cfg.bad_config_values": "Nieprawidłowe wartości konfiguracji:\n{details}",
+    "cfg.not_saved": "Nie zapisano ustawień — nieprawidłowe wartości:\n{details}",
+    "cfg.check_env_vars": "sprawdź zmienne środowiskowe aplikacji",
+    "cfg.empty_assistant_name": "assistant_name nie może być pusty",
+    "cfg.check_saved_values": "sprawdź wartości przekazane do save_user_settings() lub plik {path}",
+    "cfg.write_failed": "Nie udało się zapisać pliku {path}: {error}",
+    "cfg.write_hint": "sprawdź uprawnienia do katalogu konfiguracji",
+    # --- pozostałe narzędzia ------------------------------------------------ #
+    "yt.no_video_id": "nie znalazłam identyfikatora filmu w '{value}'",
+    "yt.no_results": "nie znalazłam filmów dla '{query}'",
+    "yt.results": "'{query}': {count} filmów — {names}",
+    "yt.no_transcript": (
+        "film {id} nie ma dostępnych napisów (autor mógł je wyłączyć — wtedy nie da się "
+        "odczytać treści)"
+    ),
+    "yt.transcript": "transkrypcja {id}: {chars} znaków",
+    "news.feed_error": "kanał {name}: {error}",
+    "news.no_feeds": "nie skonfigurowano żadnego kanału wiadomości (NEWS_FEEDS)",
+    "news.headlines": "{count} nagłówków — {sources}",
+    "news.search_results": "'{query}': {count} wiadomości — {sources}",
+    "web.no_results": (
+        "wyszukiwarka nie zwróciła wyników dla '{query}' (albo zmieniła format strony — "
+        "wtedy pomoże web.fetch)"
+    ),
+    "web.results": "'{query}': {count} wyników — {hosts}",
+    "web.no_text": (
+        "pod adresem {url} nie ma tekstu do odczytania (strona może wymagać JavaScriptu "
+        "albo zgody na ciasteczka)"
+    ),
+    "tts.nothing_to_save": "Nie ma czego zapisać — synteza nie zwróciła dźwięku.",
+    "tts.save_failed": "Nie udało się zapisać pliku {path} ({error}).",
+    "tts.save_hint": "sprawdź uprawnienia do katalogu",
+    "policy.critical_disabled": "narzędzia o ryzyku CRITICAL są wyłączone (SECURITY_ALLOW_CRITICAL=false)",
+    "pdf.no_library": "brak biblioteki do czytania PDF-ów — zainstaluj pypdf (pip install pypdf)",
+    "pdf.open_failed": "nie udało się otworzyć PDF-a '{path}': {error}",
+    "pdf.no_text": (
+        "'{path}' nie zawiera tekstu do odczytu (może być skanem — wtedy potrzebne "
+        "byłoby OCR, którego asystent nie ma)"
+    ),
+    "weather.place_not_found": "nie znalazłam miejsca o nazwie '{name}'",
+    "weather.no_current": "serwis pogodowy nie zwrócił bieżących pomiarów",
+    "weather.no_forecast": "serwis pogodowy nie zwrócił prognozy",
+    "mem.pattern_matched": "rozpoznany wzorzec zdania o użytkowniku",
+    "mem.preference": "wypowiedź o upodobaniach",
+    "mem.not_key_value": "treść nie sprowadza się do pary klucz–wartość",
+    # --- uruchamianie aplikacji i otwieranie (host/apps.py) --------------- #
+    "launch.failed": "nie udało się uruchomić: {error}",
+    "launch.no_session": (
+        "na tej maszynie nie ma sesji graficznej — nie ma gdzie pokazać okna aplikacji"
+    ),
+    "launch.unknown": "nie wiem, jak uruchomić '{name}'",
+    "launch.unknown_no_exec": (
+        "nie wiem, jak uruchomić '{name}' — brak gio, xdg-open i polecenia Exec "
+        "w pliku .desktop"
+    ),
+    "launch.no_opener": "ten system nie ma mechanizmu otwierania plików powłoką",
+    "launch.open_failed": "nie udało się otworzyć: {error}",
+    "launch.no_session_url": "na tej maszynie nie ma sesji graficznej — nie ma czym otworzyć adresu",
+    "launch.no_browser": (
+        "nie znalazłam programu, którym otworzyć ten adres (brak xdg-open, gio "
+        "i przeglądarki w zmiennej BROWSER)"
+    ),
+    "launch.started": "uruchomiono {name} ({how})",
+    "launch.opened": "otwarto '{target}' ({how})",
+    "launch.how_start_menu": "skrót z menu Start",
+    "launch.how_default": "domyślny program systemu",
+    "launch.how_stdlib": "mechanizm biblioteki standardowej",
+    # --- rekordy bazy (database/models.py) -------------------------------- #
+    "rec.fact_key_empty": "klucz faktu nie może być pusty",
+    "rec.fact_value_empty": "wartość faktu nie może być pusta",
+    "rec.pref_key_empty": "klucz preferencji nie może być pusty",
+    "rec.pref_value_empty": "wartość preferencji nie może być pusta",
+    "rec.note_body_empty": "treść notatki nie może być pusta",
+    # --- treść stron i kanałów (tools/webtext.py) ------------------------- #
+    "content.unreadable": "nie udało się odczytać treści strony",
+    "content.empty_feed": "kanał jest pusty",
+    "content.xml_entities": "kanał zawiera deklarację encji XML (DOCTYPE/ENTITY) — nie przetwarzam go",
+    "content.bad_xml": "kanał nie jest poprawnym XML-em ({error})",
+    "content.no_entries": "w kanale nie ma wpisów",
+    # --- okno rozmowy (brain/conversation.py) ----------------------------- #
+    "conv.min_messages": "max_messages musi wynosić co najmniej 2",
+    "conv.min_chars": "max_chars musi wynosić co najmniej 100",
+    "conv.trim_ratio_range": "trim_ratio musi mieścić się w przedziale 0.25–1.0",
+    "cfg.sample_rate_positive": "częstotliwość próbkowania musi być dodatnia",
+    "ha.bad_entity_id": "identyfikator encji ma postać domena.nazwa, np. light.salon",
+    "ha.no_entities": "Home Assistant nie zwrócił żadnych encji{detail}",
+    "rem.needs_db": "przypomnienia wymagają działającej bazy danych",
+    "rem.table_failed": "nie mogę przygotować tabeli przypomnień ({error})",
+    "rem.save_failed": "nie udało się zapisać przypomnienia ({error})",
+    "sandbox.timeout": "narzędzie {tool} nie odpowiedziało w {seconds} s",
+    "sandbox.failed": "narzędzie {tool} zawiodło: {error}",
+    "sandbox.bad_result": "narzędzie zwróciło wynik w nieznanym formacie",
+    "out.no_package": "Pakiet 'sounddevice' nie jest zainstalowany — odtwarzanie wyłączone.",
+    "out.portaudio_failed": "Nie udało się załadować biblioteki PortAudio ({error}).",
+    "vec.dim_mismatch": "wektor ma {actual} wymiarów, indeks oczekuje {expected}",
+    "proc.backend_psutil": "psutil (nazwa, właściciel, pamięć)",
+    "proc.backend_none": "brak — narzędzia procesowe niedostępne",
+    "reg.bad_tool_name": "nazwa narzędzia '{name}' musi mieć postać obszar.czynność (małymi literami)",
+    "reg.duplicate_tool": "narzędzie '{name}' jest już zarejestrowane",
+    "svc.summary": "{count} usług użytkownika, aktywnych: {active}",
+    "tool.dry_run": "[tryb próbny] {preview}",
+    "policy.budget_spent": (
+        "wyczerpany budżet {limit} wywołań narzędzi w tej turze (TOOLS_MAX_CALLS_PER_TURN)"
+    ),
+    "deps.device_no_match": "nie znaleziono urządzenia pasującego do '{name}'; dostępne: {devices}",
+    "pdf.summary": "{path}: {pages} z {total} stron, {chars} znaków",
+    "emb.download_hint": (
+        "pobierz go zawczasu: python scripts/prepare_offline.py --embeddings "
+        "(pobieranie blokuje OFFLINE_MODE albo EMBEDDING_ALLOW_DOWNLOAD=false)"
+    ),
     "pipe.default_device": "urządzenie domyślne",
     "pipe.describe_wake": "wake \u201e{phrase}\u201d ({engine})",
     "pipe.wake_disabled": "wyłączone",

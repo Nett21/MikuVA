@@ -18,6 +18,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -144,11 +145,11 @@ class ConversationHistory:
         on_evict: Callable[[Sequence[Message]], None] | None = None,
     ) -> None:
         if max_messages < 2:
-            raise ValueError("max_messages musi wynosić co najmniej 2")
+            raise ValueError(t("conv.min_messages"))
         if max_chars < 100:
-            raise ValueError("max_chars musi wynosić co najmniej 100")
+            raise ValueError(t("conv.min_chars"))
         if not 0.25 <= trim_ratio <= 1.0:
-            raise ValueError("trim_ratio musi mieścić się w przedziale 0.25–1.0")
+            raise ValueError(t("conv.trim_ratio_range"))
         self._max_messages = max_messages
         self._max_chars = max_chars
         self._trim_ratio = trim_ratio

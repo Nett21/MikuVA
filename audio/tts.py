@@ -72,6 +72,7 @@ from config import (
     resolve_speech_language,
     subprocess_no_window_kwargs,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ class TTSError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
@@ -266,8 +267,8 @@ class TTSProvider(ABC):
         rate = collected[0].sample_rate
         if any(chunk.sample_rate != rate for chunk in collected):
             raise TTSError(
-                "Silnik zwrócił fragmenty o różnych częstotliwościach próbkowania.",
-                hint="to błąd implementacji dostawcy mowy — zgłoś go",
+                t("tts.rate_mismatch"),
+                hint=t("tts.rate_mismatch_hint"),
             )
         return SpeechChunk(
             samples=np.concatenate([chunk.samples for chunk in collected]), sample_rate=rate
@@ -553,8 +554,8 @@ def _load_piper_module() -> ModuleType:
         ) from exc
     except OSError as exc:  # onnxruntime potrafi nie znaleźć bibliotek natywnych
         raise TTSUnavailableError(
-            f"Nie udało się załadować pakietu piper-tts ({exc}).",
-            hint="sprawdź instalację onnxruntime albo użyj programu `piper` z PATH",
+            t("tts.package_failed", error=exc),
+            hint=t("tts.package_hint"),
         ) from exc
     return piper
 
@@ -596,8 +597,8 @@ def _samples_from_piper_item(item: Any) -> tuple[np.ndarray, int]:
         return _as_int16(np.asarray(payload)), rate
 
     raise TTSError(
-        f"Nieznany format fragmentu zwrócony przez piper-tts: {type(item).__name__}.",
-        hint="zaktualizuj asystenta albo zainstaluj wersję pakietu piper-tts zgodną z dokumentacją",
+        t("tts.unknown_chunk", kind=type(item).__name__),
+        hint=t("tts.unknown_chunk_hint"),
     )
 
 
@@ -626,8 +627,8 @@ class PiperPythonBackend(PiperBackend):
         voice_class = getattr(piper, "PiperVoice", None)
         if voice_class is None:  # pragma: no cover - nieoczekiwana wersja pakietu
             raise TTSUnavailableError(
-                "Zainstalowany pakiet piper-tts nie udostępnia klasy PiperVoice.",
-                hint="zaktualizuj pakiet: pip install -U piper-tts",
+                t("tts.no_voice_class"),
+                hint=t("tts.update_package"),
             )
         try:
             loaded = voice_class.load(
@@ -636,8 +637,8 @@ class PiperPythonBackend(PiperBackend):
             )
         except Exception as exc:
             raise TTSError(
-                f"Nie udało się wczytać głosu {voice.name} ({exc}).",
-                hint=f"sprawdź plik {voice.path} i towarzyszący mu opis .onnx.json",
+                t("tts.voice_load_failed", name=voice.name, error=exc),
+                hint=t("tts.voice_load_hint", path=voice.path),
             ) from exc
 
         self._voices[key] = loaded
@@ -688,8 +689,8 @@ class PiperPythonBackend(PiperBackend):
                 return modern(text)
             except TypeError as exc:  # pragma: no cover - kolejna zmiana API
                 raise TTSError(
-                    f"Wersja pakietu piper-tts ma nieobsługiwane API syntezy ({exc}).",
-                    hint="zaktualizuj asystenta albo pakiet piper-tts",
+                    t("tts.unsupported_api", error=exc),
+                    hint=t("tts.update_assistant"),
                 ) from exc
 
         raise TTSUnavailableError(  # pragma: no cover - nieoczekiwana wersja pakietu
@@ -723,7 +724,7 @@ class PiperPythonBackend(PiperBackend):
             raise
         except Exception as exc:
             raise TTSError(
-                f"Synteza mowy nie powiodła się ({exc}).", hint="szczegóły w logs/errors.log"
+                t("tts.synthesis_failed", error=exc), hint=t("tts.details_in_log")
             ) from exc
 
     def cancel(self) -> None:
@@ -845,8 +846,8 @@ class PiperProcessBackend(PiperBackend):
             )
         except OSError as exc:
             raise TTSUnavailableError(
-                f"Nie udało się uruchomić programu {self._binary} ({exc}).",
-                hint="sprawdź PIPER_BINARY w .env albo zainstaluj pakiet: pip install piper-tts",
+                t("tts.spawn_failed", path=self._binary, error=exc),
+                hint=t("tts.spawn_hint"),
             ) from exc
 
         with self._lock:
@@ -939,9 +940,12 @@ class PiperProcessBackend(PiperBackend):
         if code not in (0, None) and not self._cancelled.is_set():
             detail = b" ".join(errors[-5:]).decode("utf-8", errors="replace").strip()
             raise TTSError(
-                f"Program piper zakończył się kodem {code}"
-                + (f": {detail[:300]}" if detail else "."),
-                hint="sprawdź, czy model głosu pasuje do wersji programu piper",
+                t(
+                    "tts.piper_exit",
+                    code=code,
+                    detail=f": {detail[:300]}" if detail else ".",
+                ),
+                hint=t("tts.model_mismatch_hint"),
             )
 
     def cancel(self) -> None:
@@ -978,11 +982,8 @@ def create_piper_backend(
     binary = find_piper_binary(active)
     if binary is None:
         raise TTSUnavailableError(
-            "Nie znalazłem ani pakietu 'piper-tts', ani programu 'piper'.",
-            hint=(
-                "zainstaluj pakiet (pip install piper-tts) albo wskaż binarkę "
-                "w .env: PIPER_BINARY=/ścieżka/do/piper"
-            ),
+            t("tts.nothing_found"),
+            hint=t("tts.nothing_found_hint"),
         )
     return PiperProcessBackend(binary)
 
@@ -1056,17 +1057,14 @@ class PiperTTSProvider(TTSProvider):
         voices = self._catalogue()
         if not voices:
             raise TTSUnavailableError(
-                "Nie znalazłem żadnego głosu Pipera (plików .onnx).",
-                hint=(
-                    "pobierz głos: python scripts/prepare_offline.py --piper, "
-                    "albo wskaż katalog w .env: PIPER_VOICES_DIR=..."
-                ),
+                t("tts.no_voices"),
+                hint=t("tts.no_voices_hint"),
             )
         self._ensure_backend()
         if self._voice is None:
             self._voice = self._resolve_voice(None)
         if self._voice is None:  # pragma: no cover - katalog nie jest pusty
-            raise TTSUnavailableError("Nie udało się wybrać głosu Pipera.")
+            raise TTSUnavailableError(t("tts.no_voice_selected"))
 
     @property
     def is_loaded(self) -> bool:
@@ -1147,8 +1145,8 @@ class PiperTTSProvider(TTSProvider):
         voice = self.voice_for(language)
         if voice is None:
             raise TTSUnavailableError(
-                "Nie ma żadnego głosu Pipera do wypowiedzenia tekstu.",
-                hint="pobierz głos: python scripts/prepare_offline.py --piper",
+                t("tts.no_voice_to_speak"),
+                hint=t("tts.no_voice_to_speak_hint"),
             )
         self._voice = voice
 
@@ -1187,7 +1185,7 @@ def register_tts_provider(name: str, factory: TTSFactory) -> None:
     """
     key = name.strip().lower()
     if not key:
-        raise ValueError("nazwa dostawcy mowy nie może być pusta")
+        raise ValueError(t("tts.empty_provider_name"))
     _PROVIDERS[key] = factory
 
 
@@ -1481,7 +1479,7 @@ def write_wav(path: Path, chunks: Iterable[SpeechChunk]) -> Path:
     """
     collected = [chunk for chunk in chunks if not chunk.is_empty]
     if not collected:
-        raise TTSError("Nie ma czego zapisać — synteza nie zwróciła dźwięku.")
+        raise TTSError(t("tts.nothing_to_save"))
 
     rate = collected[0].sample_rate
     target = Path(path).expanduser()
@@ -1495,8 +1493,8 @@ def write_wav(path: Path, chunks: Iterable[SpeechChunk]) -> Path:
                 handle.writeframes(chunk.samples.astype(np.int16).tobytes())
     except OSError as exc:
         raise TTSError(
-            f"Nie udało się zapisać pliku {target} ({exc}).",
-            hint="sprawdź uprawnienia do katalogu",
+            t("tts.save_failed", path=target, error=exc),
+            hint=t("tts.save_hint"),
         ) from exc
     return target
 
@@ -1689,8 +1687,12 @@ class SpeechOutput:
                 self._fail(exc)
             except Exception as exc:  # ostatnia linia obrony — wątek nie może paść
                 logger.exception("Nieoczekiwany błąd syntezy mowy")
-                self._fail(TTSError(f"Synteza mowy nie powiodła się ({exc}).",
-                                    hint="szczegóły w logs/errors.log"))
+                self._fail(
+                    TTSError(
+                        t("tts.synthesis_failed", error=exc),
+                        hint=t("tts.details_in_log"),
+                    )
+                )
         self._speaking.clear()
 
     def _speak_sentence(self, sentence: str) -> None:

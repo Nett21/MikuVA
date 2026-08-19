@@ -91,7 +91,7 @@ def test_sciezka_spoza_obszaru_jest_odrzucana(workspace_root: Path, sciezka: str
     workspace = make_workspace(workspace_root)
     with pytest.raises(PathNotAllowedError) as blad:
         workspace.resolve(sciezka)
-    assert "poza dozwolonymi katalogami" in blad.value.message
+    assert "outside the allowed directories" in blad.value.message
 
 
 def test_windowsowa_sciezka_bezwzgledna_tez_jest_poza_obszarem(workspace_root: Path) -> None:
@@ -122,7 +122,7 @@ def test_dowiazanie_symboliczne_na_zewnatrz_nie_daje_dostepu(
     narzedzia = tools_for(workspace_root)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["fs.read"].run(ReadArgs(path="skrot"), ctx()))
-    assert "poza dozwolonymi katalogami" in blad.value.message
+    assert "outside the allowed directories" in blad.value.message
 
 
 def test_dowiazanie_wewnatrz_obszaru_dziala(workspace_root: Path) -> None:
@@ -251,7 +251,7 @@ def test_plik_binarny_nie_jest_czytany_jako_tekst(workspace_root: Path) -> None:
     narzedzia = tools_for(workspace_root)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["fs.read"].run(ReadArgs(path="dane.bin"), ctx()))
-    assert "binarny" in blad.value.message
+    assert "binary file" in blad.value.message
     assert looks_binary(workspace_root / "dane.bin")
 
 
@@ -316,7 +316,7 @@ def test_zapis_nie_nadpisuje_bez_jawnego_trybu(workspace_root: Path) -> None:
     with pytest.raises(ToolError) as blad:
         run(narzedzia["fs.write"].run(WriteArgs(path="plan.txt", content="nowe"), ctx()))
 
-    assert "już istnieje" in blad.value.message
+    assert "already exists" in blad.value.message
     assert "kupić rower" in (workspace_root / "plan.txt").read_text(encoding="utf-8")
 
 
@@ -324,7 +324,7 @@ def test_zapis_ponad_limit_jest_odrzucany(workspace_root: Path) -> None:
     narzedzia = tools_for(workspace_root, max_write_bytes=100)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["fs.write"].run(WriteArgs(path="duzy.txt", content="x" * 500), ctx()))
-    assert "limit zapisu" in blad.value.message
+    assert "write limit" in blad.value.message
     assert not (workspace_root / "duzy.txt").exists()
 
 
@@ -408,7 +408,7 @@ def test_calego_obszaru_roboczego_nie_da_sie_usunac(workspace_root: Path) -> Non
     for args in (DeleteArgs(path="."), DeleteArgs(path=".", recursive=True)):
         with pytest.raises(ToolError) as blad:
             run(narzedzia["fs.delete"].run(args, ctx()))
-        assert "katalogiem roboczym" in blad.value.message
+        assert "workspace directory" in blad.value.message
     assert workspace_root.is_dir()
 
 
@@ -422,7 +422,7 @@ def test_zbyt_duzy_katalog_nie_ginie_jednym_wywolaniem(workspace_root: Path) -> 
     with pytest.raises(ToolError) as blad:
         run(narzedzia["fs.delete"].run(DeleteArgs(path="duzo", recursive=True), ctx()))
 
-    assert "mniejszymi porcjami" in blad.value.message
+    assert "smaller batches" in blad.value.message
     assert len(list(katalog.iterdir())) == 6
 
 

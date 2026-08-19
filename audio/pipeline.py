@@ -1,17 +1,18 @@
-"""Potok wejścia głosowego: MIKROFON → VAD → [WAKE WORD] → WHISPER → TEKST.
+"""Voice input pipeline: MICROPHONE → VAD → [WAKE WORD] → WHISPER → TEXT.
 
-Potok jest w całości wstrzykiwalny: mikrofon, VAD, segmenter, detektor frazy i
-transkryber można podmienić na atrapy, dlatego testy nie potrzebują sprzętu.
+The pipeline is injectable end to end: the microphone, the VAD, the segmenter,
+the phrase detector and the transcriber can all be swapped for fakes, which is
+why the tests need no hardware.
 
-Bramka słowa aktywującego (Faza 3) stoi przed głównym modelem: dopóki fraza nie
-padnie, żadna wypowiedź nie trafia do dużego Whispera ani dalej do modelu
-językowego. Po wykryciu frazy otwiera się okno rozmowy
-(``WAKE_WINDOW_S``), w którym mówi się normalnie, bez powtarzania zawołania.
+The wake word gate (Phase 3) stands in front of the main model: until the phrase
+is spoken, no utterance reaches the large Whisper, let alone the language model.
+Once the phrase is detected, a conversation window opens (``WAKE_WINDOW_S``) in
+which you speak normally, without repeating the call.
 
-Klasa jest świadomie synchroniczna. Nasłuch to pętla czekająca na ramki z
-kolejki wypełnianej przez wątek PortAudio, a Whisper i tak liczy w kodzie
-natywnym — asyncio nie dałoby tu nic poza komplikacją. Do użycia z GUI
-(Faza 10) służy :meth:`WhisperTranscriber.transcribe_async`.
+The class is deliberately synchronous. Listening is a loop waiting for frames
+from a queue filled by the PortAudio thread, and Whisper computes in native code
+anyway — asyncio would add nothing here but complication. For use with the GUI
+(Phase 10) there is :meth:`WhisperTranscriber.transcribe_async`.
 """
 
 from __future__ import annotations
@@ -43,10 +44,10 @@ from i18n import t
 
 logger = logging.getLogger(__name__)
 
-# Ile razy z rzędu wolno dostać pustą transkrypcję, zanim oddamy sterowanie.
-# Bez tego limitu hałaśliwe otoczenie (VAD wyzwala się na szumie, Whisper nie
-# rozpoznaje treści) trzymałoby nasłuch w nieskończoność, bo każda pusta próba
-# odnawiała limit czasu.
+# How many empty transcripts in a row we tolerate before handing control back.
+# Without this limit a noisy room (the VAD triggers on noise, Whisper recognises
+# nothing) would hold the listen forever, because every empty attempt renewed
+# the time limit.
 MAX_EMPTY_TRANSCRIPTS: int = 3
 
 
@@ -79,7 +80,7 @@ EventCallback = Callable[[PipelineMessage], None]
 
 
 class SpeechPipelineError(RuntimeError):
-    """Potok nie może działać na tej maszynie."""
+    """The pipeline cannot run on this machine."""
 
     def __init__(self, message: str, *, hint: str = "") -> None:
         super().__init__(message)
@@ -89,12 +90,12 @@ class SpeechPipelineError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
 class SpeechToTextPipeline:
-    """Nasłuchuje mikrofonu i zwraca transkrypcje kolejnych wypowiedzi."""
+    """Listens to the microphone and returns transcripts of successive utterances."""
 
     def __init__(
         self,
@@ -119,21 +120,21 @@ class SpeechToTextPipeline:
         self._on_event = on_event
         self._started = False
 
-        # --- bramka słowa aktywującego ---
+        # --- the wake word gate ---
         self._wake_model = wake_transcriber
         self._wake = wake if wake is not None else self._build_wake_engine()
         self._awake_until = 0.0
         self._armed_turn = False
 
-        # --- oszczędzanie pamięci w ciszy ---
-        # Czas ostatniej rzeczywistej pracy (mowa albo transkrypcja). Model
-        # Whispera trzymany „na wszelki wypadek" nie zużywa cykli, ale zajmuje
-        # kilkaset MB RAM-u albo VRAM-u — na maszynie z jednym GPU to jest
-        # różnica między działającą grą a swapem.
+        # --- saving memory during silence ---
+        # The time of the last real work (speech or transcription). A Whisper
+        # model kept loaded "just in case" consumes no cycles but occupies a few
+        # hundred MB of RAM or VRAM — on a machine with a single GPU that is the
+        # difference between a game that runs and swapping.
         self._last_activity = time.monotonic()
         self._idle_unloaded = False
 
-    # --- właściwości ----------------------------------------------------- #
+    # --- properties ------------------------------------------------------ #
 
     @property
     def is_started(self) -> bool:
@@ -165,21 +166,21 @@ class SpeechToTextPipeline:
 
     @property
     def is_awake(self) -> bool:
-        """Czy fraza już padła i wolno mówić bez powtarzania zawołania?"""
+        """Has the phrase already been spoken, so one may speak without repeating it?"""
         return self._armed_turn or time.monotonic() < self._awake_until
 
     def requires_wake(self) -> bool:
-        """Czy w tej chwili wypowiedzi są odrzucane bez frazy?"""
+        """Are utterances currently rejected without the phrase?"""
         return self._wake is not None and not self.is_awake
 
     def wake_up(self) -> None:
-        """Otwórz okno rozmowy ręcznie (np. skrótem klawiszowym albo z GUI)."""
+        """Open the conversation window manually (e.g. by a shortcut or from the GUI)."""
         self._mark_activity()
         self._armed_turn = True
         self._awake_until = time.monotonic() + self._settings.wake_window_s
 
     def sleep(self) -> None:
-        """Zamknij okno rozmowy — kolejna wypowiedź znów wymaga frazy."""
+        """Close the conversation window — the next utterance needs the phrase again."""
         self._armed_turn = False
         self._awake_until = 0.0
         if self._wake is not None:
@@ -199,11 +200,11 @@ class SpeechToTextPipeline:
     # --- budowa detektora frazy ------------------------------------------- #
 
     def _wake_model_for_detection(self) -> WhisperTranscriber:
-        """Model używany do wykrywania frazy — mały i osobny, chyba że ten sam.
+        """The model used for phrase detection — small and separate, unless it is the same one.
 
-        Domyślnie ``tiny``: detektor ma być tani, a nie dokładny. Gdy
-        ``WAKE_WHISPER_MODEL`` jest puste albo równe modelowi głównemu,
-        korzystamy z tego samego obiektu i nie zajmujemy pamięci dwa razy.
+        ``tiny`` by default: the detector is meant to be cheap, not accurate. When
+        ``WAKE_WHISPER_MODEL`` is empty or equal to the main model, we use the
+        same object and do not occupy memory twice.
         """
         if self._wake_model is not None:
             return self._wake_model
@@ -213,12 +214,13 @@ class SpeechToTextPipeline:
             self._wake_model = self._transcriber
             return self._wake_model
 
-        # Bez sieci nie ma jak dociągnąć osobnego modelu. Zamiast wywalać tryb
-        # głosowy, wykrywamy frazę modelem głównym — wolniej, ale działa.
+        # Without a network there is no way to fetch a separate model. Rather
+        # than breaking voice mode, we detect the phrase with the main model —
+        # slower, but it works.
         if is_offline(self._settings) and find_local_whisper_model(wanted) is None:
             logger.info(
-                "Model frazy %r nie jest pobrany, a tryb offline zabrania pobierania — "
-                "używam modelu głównego.",
+                "The phrase model %r is not downloaded and offline mode forbids "
+                "downloading — using the main model.",
                 wanted,
             )
             self._wake_model = self._transcriber
@@ -230,16 +232,16 @@ class SpeechToTextPipeline:
         return self._wake_model
 
     def _transcribe_for_wake(self, utterance: Utterance) -> str:
-        """Transkrypcja NA POTRZEBY detekcji frazy — inne ustawienia niż zwykła.
+        """Transcription FOR THE PURPOSE of phrase detection — different settings from the usual.
 
-        Dwie różnice, obie zmierzone na korpusie 480 transkrypcji:
+        Two differences, both measured on a corpus of 480 transcriptions:
 
-        * **podpowiedź frazy** (``hotwords``): nazwa asystenta jest dla modelu
-          obcym słowem i bez niej wychodzi „tymiku" albo „micu" — z podpowiedzią
-          wykrywanie rośnie z 45% na 95% (model ``base``),
-        * **wymuszony język**: fraza jest zapisana w ustawieniach użytkownika, a
-          więc jej język jest znany. Zgadywanie na jednosekundowym fragmencie
-          kończyło się japońskimi znakami zamiast „hej miku".
+        * **the phrase hint** (``hotwords``): the assistant's name is a foreign
+          word to the model, and without it the result is "tymiku" or "micu" —
+          with the hint, detection rises from 45% to 95% (the ``base`` model),
+        * **a forced language**: the phrase is written in the user's settings, so
+          its language is known. Guessing on a one-second fragment ended in
+          Japanese characters instead of "hey miku".
         """
         phrase = self._wake.phrase if self._wake is not None else ""
         return (
@@ -256,20 +258,20 @@ class SpeechToTextPipeline:
         try:
             return create_wake_word_engine(self._settings, transcribe=self._transcribe_for_wake)
         except WakeWordError as exc:
-            # Brak detektora nie może odebrać użytkownikowi trybu głosowego —
-            # nasłuch działa dalej, tyle że bez bramki.
-            logger.warning("Detektor frazy niedostępny: %s", exc.message)
+            # A missing detector must not take voice mode away from the user —
+            # listening carries on, only without the gate.
+            logger.warning("Phrase detector unavailable: %s", exc.message)
             return None
 
     @staticmethod
     def is_available(settings: Settings | None = None) -> bool:
-        """Czy tryb głosowy ma szansę zadziałać? Nie rzuca wyjątków."""
+        """Does voice mode stand a chance of working? Raises nothing."""
         return is_microphone_available(settings)
 
-    # --- cykl życia ------------------------------------------------------- #
+    # --- lifecycle -------------------------------------------------------- #
 
     def start(self) -> None:
-        """Uruchom mikrofon i załaduj model transkrypcji."""
+        """Start the microphone and load the transcription model."""
         if self._started:
             return
         try:
@@ -296,20 +298,20 @@ class SpeechToTextPipeline:
         )
 
     def _load_wake_model(self) -> None:
-        """Załaduj model detektora frazy z góry, żeby pierwsze zawołanie nie czekało.
+        """Load the phrase detector model up front, so the first call does not wait.
 
-        Awaria nie może zablokować trybu głosowego: bramka jest wtedy zdejmowana,
-        a użytkownik dostaje jasny komunikat, że nasłuch idzie bez frazy.
+        A failure must not block voice mode: the gate is then removed and the
+        user gets a clear message that listening proceeds without the phrase.
         """
         if self._wake is None or self._wake.mode != "utterance":
             return
         model = self._wake_model_for_detection()
         if model is self._transcriber:
-            return  # główny model już jest załadowany
+            return  # the main model is already loaded
         try:
             model.load()
         except TranscriptionError as exc:
-            logger.warning("Nie udało się załadować modelu frazy: %s", exc.message)
+            logger.warning("Could not load the phrase model: %s", exc.message)
             self._emit(
                 PipelineEvent.ERROR,
                 t("pipe.wake_failed", error=exc.message),
@@ -317,7 +319,7 @@ class SpeechToTextPipeline:
             )
             self._wake = None
 
-    # --- oszczędzanie pamięci w ciszy -------------------------------------- #
+    # --- saving memory during silence -------------------------------------- #
 
     @property
     def idle_unload_after_s(self) -> float:
@@ -326,7 +328,7 @@ class SpeechToTextPipeline:
 
     @property
     def is_idle_unloaded(self) -> bool:
-        """Czy główny model został zwolniony z powodu ciszy."""
+        """Has the main model been released because of silence?"""
         return self._idle_unloaded
 
     def _mark_activity(self) -> None:
@@ -334,14 +336,14 @@ class SpeechToTextPipeline:
         self._idle_unloaded = False
 
     def _maybe_unload_idle(self) -> bool:
-        """Zwolnij główny model po dostatecznie długiej ciszy.
+        """Release the main model after sufficiently long silence.
 
-        Zwalniany jest WYŁĄCZNIE model główny (``small``/``medium`` — setki MB,
-        często na GPU). Model detektora frazy (``tiny``, ok. 39 MB) zostaje:
-        to on decyduje, czy w ogóle się obudzić, więc jego przeładowanie
-        opóźniałoby każde zawołanie. Model główny przeładuje się sam przy
-        pierwszej transkrypcji (``WhisperTranscriber.transcribe`` woła
-        ``load()``), co kosztuje jednorazowo ok. 1–3 s.
+        ONLY the main model is released (``small``/``medium`` — hundreds of MB,
+        often on the GPU). The phrase detector model (``tiny``, about 39 MB)
+        stays: it is the one that decides whether to wake up at all, so reloading
+        it would delay every call. The main model reloads itself at the first
+        transcription (``WhisperTranscriber.transcribe`` calls ``load()``), which
+        costs a one-off 1–3 s.
         """
         limit = self._settings.whisper_idle_unload_s
         if limit <= 0 or self._idle_unloaded:
@@ -351,27 +353,27 @@ class SpeechToTextPipeline:
         if time.monotonic() - self._last_activity < limit:
             return False
         if not self._transcriber.is_loaded:
-            # Nic do zwolnienia, ale znacznik stawiamy — inaczej sprawdzenie
-            # powtarzałoby się przy każdej ramce ciszy.
+            # Nothing to release, but we set the marker anyway — otherwise the
+            # check would repeat on every frame of silence.
             self._idle_unloaded = True
             return False
         if self._wake_model is not None and self._wake_model is self._transcriber:
-            # Detektor frazy używa TEGO SAMEGO obiektu (WAKE_WHISPER_MODEL puste
-            # albo równe głównemu). Zwolnienie kosztowałoby przeładowanie przy
-            # każdym zawołaniu, więc zostawiamy model w pamięci.
+            # The phrase detector uses THE SAME object (WAKE_WHISPER_MODEL is
+            # empty or equal to the main one). Releasing it would cost a reload
+            # on every call, so we leave the model in memory.
             self._idle_unloaded = True
             return False
         self._transcriber.unload()
         self._idle_unloaded = True
         logger.info(
-            "Cisza przez %.0f s — zwolniono model Whisper '%s' (wróci przy pierwszej wypowiedzi)",
+            "Silence for %.0f s — released the Whisper model '%s' (it returns at the first utterance)",
             limit,
             self._transcriber.model_name,
         )
         return True
 
     def stop(self) -> None:
-        """Zatrzymaj mikrofon; model zostaje w pamięci na wypadek ponownego startu."""
+        """Stop the microphone; the model stays in memory in case of a restart."""
         if not self._started:
             return
         self._segmenter.flush()
@@ -399,7 +401,7 @@ class SpeechToTextPipeline:
     ) -> None:
         self.close()
 
-    # --- nasłuch ----------------------------------------------------------- #
+    # --- listening --------------------------------------------------------- #
 
     def _emit(self, event: PipelineEvent, text: str, detail: str = "") -> None:
         message = PipelineMessage(event=event, text=text, detail=detail)
@@ -407,8 +409,8 @@ class SpeechToTextPipeline:
         if self._on_event is not None:
             try:
                 self._on_event(message)
-            except Exception as exc:  # błąd interfejsu nie może zabić nasłuchu
-                logger.warning("Callback zdarzeń potoku zgłosił błąd: %s", exc)
+            except Exception as exc:  # an interface error must not kill the listen
+                logger.warning("The pipeline event callback raised: %s", exc)
 
     def _announce_listening(self) -> None:
         if self.requires_wake():
@@ -434,21 +436,21 @@ class SpeechToTextPipeline:
         )
 
     def _check_wake_utterance(self, utterance: Utterance) -> WakeMatch | None:
-        """Sprawdź wypowiedź detektorem frazy (silniki segmentowe)."""
+        """Check the utterance with the phrase detector (utterance-mode engines)."""
         if self._wake is None or self._wake.mode != "utterance":
             return None
         return self._wake.process_utterance(utterance)
 
     def listen_once(self, timeout_s: float | None = None) -> Transcript | None:
-        """Czekaj na jedną wypowiedź i zwróć jej transkrypcję.
+        """Wait for one utterance and return its transcript.
 
-        Zwraca ``None``, gdy w czasie ``timeout_s`` nikt nic nie powiedział.
-        Limit czasu liczy się wyłącznie do ciszy — rozpoczętej wypowiedzi
-        nigdy nie przerywa w połowie.
+        Returns ``None`` when nobody said anything within ``timeout_s``. The time
+        limit counts silence only — it never interrupts an utterance already in
+        progress.
 
-        Gdy bramka frazy jest aktywna, wypowiedzi bez słowa aktywującego są
-        odrzucane i **nie trafiają do głównego modelu** — kończą się zdarzeniem
-        ``IGNORED``.
+        When the phrase gate is active, utterances without the wake word are
+        rejected and **do not reach the main model** — they end with an
+        ``IGNORED`` event.
         """
         self.start()
 
@@ -466,11 +468,12 @@ class SpeechToTextPipeline:
             frame = self._microphone.read(timeout=0.2)
 
             if frame is None:
-                # Kolejka jest pusta — mikrofon nic nie oddał przez 200 ms. To
-                # jedyne miejsce w pętli, w którym na pewno nic się nie dzieje,
-                # więc tu sprawdzamy, czy nie zwolnić modelu (patrz
-                # `_maybe_unload_idle`). Czekanie jest blokujące na kolejce, bez
-                # aktywnego odpytywania — pętla sama z siebie nie zużywa CPU.
+                # The queue is empty — the microphone returned nothing for
+                # 200 ms. This is the only place in the loop where we know for
+                # certain that nothing is happening, so this is where we check
+                # whether to release the model (see `_maybe_unload_idle`). The
+                # wait blocks on the queue rather than polling — the loop
+                # consumes no CPU by itself.
                 self._maybe_unload_idle()
                 if (
                     deadline is not None
@@ -481,8 +484,8 @@ class SpeechToTextPipeline:
                     return None
                 continue
 
-            # Silniki strumieniowe (openWakeWord) oglądają każdą ramkę —
-            # fraza może paść w środku wypowiedzi, którą segmenter właśnie nagrywa.
+            # Streaming engines (openWakeWord) inspect every frame — the phrase
+            # may fall in the middle of an utterance the segmenter is recording.
             streaming_wake = self._wake is not None and self._wake.mode == "stream"
             if streaming_wake and self._wake is not None and not self.is_awake:
                 streamed = self._wake.process_frame(frame)
@@ -509,8 +512,9 @@ class SpeechToTextPipeline:
                 continue
 
             if utterance.truncated:
-                # Wypowiedź ucięta twardym limitem prawie zawsze znaczy, że VAD
-                # nie widzi ciszy — czyli próg jest za niski dla tego mikrofonu.
+                # An utterance cut by the hard limit almost always means the VAD
+                # does not see silence — that is, the threshold is too low for
+                # this microphone.
                 self._emit(
                     PipelineEvent.SPEECH_END,
                     t("pipe.speech_end_truncated", seconds=f"{utterance.duration_s:.1f}"),
@@ -524,9 +528,10 @@ class SpeechToTextPipeline:
             if self.requires_wake():
                 match = self._check_wake_utterance(utterance)
                 if match is None:
-                    # Rozmowa w tle: główny model ani model językowy nigdy jej
-                    # nie zobaczą. Limit ciszy celowo NIE jest odnawiany —
-                    # inaczej gadające radio trzymałoby nasłuch w nieskończoność.
+                    # Background conversation: neither the main model nor the
+                    # language model will ever see it. The silence limit is
+                    # deliberately NOT renewed — otherwise a talking radio would
+                    # hold the listen forever.
                     self._emit(
                         PipelineEvent.IGNORED,
                         t("pipe.ignored", phrase=self.wake_phrase),
@@ -536,7 +541,7 @@ class SpeechToTextPipeline:
 
                 self._register_wake(match)
                 if not match.has_command:
-                    # Samo zawołanie — teraz czekamy na właściwe polecenie.
+                    # Just the call — now we wait for the actual command.
                     self._emit(PipelineEvent.LISTENING, t("pipe.listening"))
                     if deadline is not None:
                         deadline = time.monotonic() + limit
@@ -566,8 +571,8 @@ class SpeechToTextPipeline:
 
             transcript = self._without_wake_phrase(transcript)
             if transcript.is_empty:
-                # Cała wypowiedź była samym zawołaniem („hej miku") — polecenie
-                # dopiero nadejdzie.
+                # The whole utterance was the call itself ("hey miku") — the
+                # command is yet to come.
                 self._emit(PipelineEvent.LISTENING, t("pipe.listening"))
                 if deadline is not None:
                     deadline = time.monotonic() + limit
@@ -583,7 +588,7 @@ class SpeechToTextPipeline:
             return transcript
 
     def _without_wake_phrase(self, transcript: Transcript) -> Transcript:
-        """Odetnij frazę z początku polecenia („hej miku, jaka pogoda")."""
+        """Strip the phrase from the start of a command ("hey miku, what is the weather")."""
         if self._wake is None:
             return transcript
         stripped = self._wake.strip_phrase(transcript.text).strip()
@@ -592,14 +597,14 @@ class SpeechToTextPipeline:
         return replace(transcript, text=stripped)
 
     def _refresh_wake_window(self) -> None:
-        """Po udanym poleceniu okno rozmowy liczy się od nowa."""
+        """After a successful command the conversation window starts counting again."""
         if self._wake is None:
             return
         self._armed_turn = False
         self._awake_until = time.monotonic() + self._settings.wake_window_s
 
     def transcripts(self, timeout_s: float | None = None) -> Iterator[Transcript]:
-        """Nieskończony strumień transkrypcji; kończy się po ciszy dłuższej niż limit."""
+        """An endless stream of transcripts; ends after silence longer than the limit."""
         while True:
             transcript = self.listen_once(timeout_s)
             if transcript is None:

@@ -40,6 +40,7 @@ from typing import Any, Final, Literal
 from pydantic import Field
 
 from config import Settings, get_settings
+from i18n import t
 from host.paths import (
     PathNotAllowedError,
     Workspace,
@@ -167,7 +168,7 @@ class ListTool(_FilesystemTool[ListArgs]):
         label = self._workspace.label(directory)
         return ToolResult.success(
             {"path": label, "count": len(items), "entries": items},
-            display=f"{label}: {len(items)} wpisów",
+            display=t("fs.listing", path=label, count=len(items)),
         )
 
 
@@ -178,7 +179,7 @@ class ReadTool(_FilesystemTool[ReadArgs]):
         path = self._resolve(args.path, must_exist=True, must_be_file=True)
         if looks_binary(path):
             label = self._workspace.label(path)
-            raise ToolError(f"'{label}' wygląda na plik binarny — nie czytam go jako tekst")
+            raise ToolError(t("fs.binary", path=label))
         limit = min(
             args.max_bytes or self._workspace.max_read_bytes,
             self._workspace.max_read_bytes,
@@ -237,7 +238,12 @@ class SearchTool(_FilesystemTool[SearchArgs]):
 
         return ToolResult.success(
             {"query": args.query, "count": len(hits), "matches": hits, "scanned": scanned},
-            display=f"'{args.query}': {len(hits)} trafień w {self._workspace.label(directory)}",
+            display=t(
+                "fs.search_hits",
+                query=args.query,
+                count=len(hits),
+                path=self._workspace.label(directory),
+            ),
             untrusted=bool(hits) and args.in_content,
         )
 
@@ -268,15 +274,15 @@ class MkdirTool(_FilesystemTool[MkdirArgs]):
         if path.exists():
             return ToolResult.success(
                 {"path": self._workspace.label(path), "created": False},
-                display=f"katalog {self._workspace.label(path)} już istnieje",
+                display=t("fs.dir_exists", path=self._workspace.label(path)),
             )
         try:
             path.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            raise ToolError(f"nie udało się utworzyć katalogu: {exc}") from exc
+            raise ToolError(t("fs.mkdir_failed", error=exc)) from exc
         return ToolResult.success(
             {"path": self._workspace.label(path), "created": True},
-            display=f"utworzono katalog {self._workspace.label(path)}",
+            display=t("fs.dir_created", path=self._workspace.label(path)),
         )
 
     async def preview(self, args: MkdirArgs, ctx: ToolContext) -> str:
@@ -333,14 +339,13 @@ class WriteTool(_FilesystemTool[WriteArgs]):
         data = args.content.encode("utf-8")
         if len(data) > self._workspace.max_write_bytes:
             raise ToolError(
-                f"treść ma {len(data)} B, a limit zapisu to {self._workspace.max_write_bytes} B"
+                t("fs.too_large", size=len(data), limit=self._workspace.max_write_bytes)
             )
         if path.is_dir():
-            raise ToolError(f"'{self._workspace.label(path)}' jest katalogiem")
+            raise ToolError(t("fs.is_a_directory", path=self._workspace.label(path)))
         if args.mode == "create" and path.exists():
             raise ToolError(
-                f"plik {self._workspace.label(path)} już istnieje — użyj mode='overwrite' "
-                "albo mode='append' (wymaga potwierdzenia użytkownika)"
+                t("fs.file_exists", path=self._workspace.label(path))
             )
 
         try:
@@ -355,7 +360,7 @@ class WriteTool(_FilesystemTool[WriteArgs]):
                 temporary.write_text(args.content, encoding="utf-8", newline="\n")
                 os.replace(temporary, path)
         except OSError as exc:
-            raise ToolError(f"nie udało się zapisać pliku: {exc}") from exc
+            raise ToolError(t("fs.write_failed", error=exc)) from exc
 
         label = self._workspace.label(path)
         return ToolResult.success(
@@ -379,9 +384,7 @@ class MoveTool(_FilesystemTool[MoveArgs]):
         """Przeniesienia dozwolonego katalogu odmawiamy przed pytaniem o zgodę."""
         source = self._resolve(args.source)
         if self._workspace.is_root(source):
-            raise ValueError(
-                "nie przenoszę katalogu, który jest dozwolonym obszarem roboczym"
-            )
+            raise ValueError(t("fs.no_move_root"))
         return args
 
     def confirmation(self, args: MoveArgs, *, language: str = "en") -> ConfirmationRequest | None:
@@ -416,7 +419,7 @@ class MoveTool(_FilesystemTool[MoveArgs]):
         source = self._resolve(args.source, must_exist=True)
         destination = self._resolve(args.destination)
         if self._workspace.is_root(source):
-            raise ToolError("nie przenoszę katalogu, który jest dozwolonym obszarem roboczym")
+            raise ToolError(t("fs.no_move_root"))
         if destination.exists() and destination.is_dir() and not source.is_dir():
             destination = destination / source.name
 
@@ -424,7 +427,7 @@ class MoveTool(_FilesystemTool[MoveArgs]):
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(source), str(destination))
         except (OSError, shutil.Error) as exc:
-            raise ToolError(f"nie udało się przenieść: {exc}") from exc
+            raise ToolError(t("fs.move_failed", error=exc)) from exc
 
         return ToolResult.success(
             {
@@ -454,15 +457,9 @@ class DeleteTool(_FilesystemTool[DeleteArgs]):
         """
         path = self._resolve(args.path)
         if self._workspace.is_root(path):
-            raise ValueError(
-                f"'{self._workspace.label(path)}' jest dozwolonym katalogiem roboczym — "
-                "nie usuwam całego obszaru, nawet z potwierdzeniem"
-            )
+            raise ValueError(t("fs.no_delete_root", path=self._workspace.label(path)))
         if path.is_dir() and not path.is_symlink() and not args.recursive:
-            raise ValueError(
-                f"'{self._workspace.label(path)}' jest katalogiem — żeby usunąć go razem "
-                "z zawartością, podaj recursive=true (wymaga potwierdzenia użytkownika)"
-            )
+            raise ValueError(t("fs.need_recursive", path=self._workspace.label(path)))
         return args
 
     def dynamic_risk(self, args: DeleteArgs) -> RiskLevel:
@@ -525,28 +522,25 @@ class DeleteTool(_FilesystemTool[DeleteArgs]):
 
         # Blokada nie do obejścia: obszar roboczy jako całość nie ginie.
         if self._workspace.is_root(path):
-            raise ToolError(
-                f"'{self._workspace.label(path)}' jest dozwolonym katalogiem roboczym — "
-                "nie usuwam całego obszaru, nawet z potwierdzeniem"
-            )
+            raise ToolError(t("fs.no_delete_root", path=self._workspace.label(path)))
 
         if path.is_dir() and not path.is_symlink():
             if not args.recursive:
-                raise ToolError(
-                    f"'{self._workspace.label(path)}' jest katalogiem — żeby usunąć go razem "
-                    "z zawartością, podaj recursive=true (wymaga potwierdzenia użytkownika)"
-                )
+                raise ToolError(t("fs.need_recursive", path=self._workspace.label(path)))
             files, directories = count_tree(path, limit=self._workspace.max_delete_entries + 1)
             if files + directories > self._workspace.max_delete_entries:
                 raise ToolError(
-                    f"katalog zawiera więcej niż {self._workspace.max_delete_entries} "
-                    f"wpisów ({files} plików, {directories} podkatalogów) — nie usuwam go "
-                    "jednym wywołaniem. Usuń zawartość mniejszymi porcjami."
+                    t(
+                        "fs.too_many_entries",
+                        limit=self._workspace.max_delete_entries,
+                        files=files,
+                        directories=directories,
+                    )
                 )
             try:
                 shutil.rmtree(path)
             except OSError as exc:
-                raise ToolError(f"nie udało się usunąć katalogu: {exc}") from exc
+                raise ToolError(t("fs.rmtree_failed", error=exc)) from exc
             return ToolResult.success(
                 {
                     "path": self._workspace.label(path),
@@ -554,9 +548,11 @@ class DeleteTool(_FilesystemTool[DeleteArgs]):
                     "files": files,
                     "directories": directories,
                 },
-                display=(
-                    f"usunięto katalog {self._workspace.label(path)} "
-                    f"({files} plików, {directories} podkatalogów)"
+                display=t(
+                    "fs.dir_deleted",
+                    path=self._workspace.label(path),
+                    files=files,
+                    directories=directories,
                 ),
             )
 
@@ -564,10 +560,10 @@ class DeleteTool(_FilesystemTool[DeleteArgs]):
             size = path.stat().st_size
             path.unlink()
         except OSError as exc:
-            raise ToolError(f"nie udało się usunąć pliku: {exc}") from exc
+            raise ToolError(t("fs.unlink_failed", error=exc)) from exc
         return ToolResult.success(
             {"path": self._workspace.label(path), "kind": "file", "bytes": size},
-            display=f"usunięto plik {self._workspace.label(path)}",
+            display=t("fs.file_deleted", path=self._workspace.label(path)),
         )
 
     async def preview(self, args: DeleteArgs, ctx: ToolContext) -> str:
@@ -604,7 +600,7 @@ def build_filesystem_tools(
                     "List the directories the file tools may access. Call this first when "
                     "you are unsure whether a path is reachable."
                 ),
-                summary="dozwolone katalogi narzędzi plikowych",
+                summary=t("spec.fs_roots"),
                 args_model=ToolArgs,
                 risk=RiskLevel.SAFE,
                 timeout_s=5.0,
@@ -619,7 +615,7 @@ def build_filesystem_tools(
                     "relative to that directory: use '.' for the directory itself, "
                     "'notes' for a subdirectory. Call fs.roots first if unsure."
                 ),
-                summary="zawartość katalogu (tylko odczyt)",
+                summary=t("spec.fs_list"),
                 args_model=ListArgs,
                 risk=RiskLevel.SAFE,
                 timeout_s=10.0,
@@ -648,7 +644,7 @@ def build_filesystem_tools(
                     "Find files by name, or by content when in_content=true, inside an "
                     "allowed directory."
                 ),
-                summary="szukanie plików po nazwie i treści",
+                summary=t("spec.fs_search"),
                 args_model=SearchArgs,
                 risk=RiskLevel.SAFE,
                 timeout_s=20.0,

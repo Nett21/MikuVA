@@ -48,6 +48,7 @@ from security.confirm import ConfirmationRequest
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
 from tools.webtext import clip, normalize_date, strip_tags
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ def video_id(value: str) -> str:
         found = segments[-1] if segments else ""
 
     if not _VIDEO_ID.match(found):
-        raise ToolError(f"nie znalazłam identyfikatora filmu w '{raw}'")
+        raise ToolError(t("yt.no_video_id", value=raw))
     return found
 
 
@@ -201,11 +202,11 @@ class YouTubeSearchTool(_YouTubeTool[SearchArgs]):
                 break
 
         if not videos:
-            raise ToolError(f"nie znalazłam filmów dla '{args.query}'")
+            raise ToolError(t("yt.no_results", query=args.query))
         listing = "; ".join(f"{item['title'][:60]} ({item['channel']})" for item in videos[:3])
         return ToolResult.success(
             {"query": args.query, "count": len(videos), "videos": videos},
-            display=f"'{args.query}': {len(videos)} filmów — {listing}",
+            display=t("yt.results", query=args.query, count=len(videos), names=listing),
             untrusted=True,
         )
 
@@ -224,8 +225,7 @@ class YouTubeTranscriptTool(_YouTubeTool[TranscriptArgs]):
             text = await self._timedtext(identifier, "en")
         if not text:
             raise ToolError(
-                f"film {identifier} nie ma dostępnych napisów (autor mógł je wyłączyć — "
-                "wtedy nie da się odczytać treści)"
+                t("yt.no_transcript", id=identifier)
             )
 
         clipped, truncated = clip(text, limit, note="[...] transkrypcja obcięta")
@@ -237,7 +237,7 @@ class YouTubeTranscriptTool(_YouTubeTool[TranscriptArgs]):
                 "truncated": truncated,
                 "text": clipped,
             },
-            display=f"transkrypcja {identifier}: {len(clipped)} znaków",
+            display=t("yt.transcript", id=identifier, chars=len(clipped)),
             untrusted=True,
         )
 
@@ -354,7 +354,7 @@ def build_youtube_tools(
                     "Search YouTube for videos and return titles, channels and links. "
                     "Requires a YouTube Data API key."
                 ),
-                summary="szukanie filmów na YouTube",
+                summary=t("spec.yt_search"),
                 args_model=SearchArgs,
                 risk=RiskLevel.MEDIUM,
                 requires_network=True,

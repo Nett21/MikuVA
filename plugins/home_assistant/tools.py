@@ -40,6 +40,7 @@ from plugins.home_assistant.client import (
 from security.confirm import ConfirmationRequest
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class EntityArgs(ToolArgs):
     def _looks_like_entity(cls, value: str) -> str:
         text = value.strip().lower()
         if "." not in text:
-            raise ValueError("identyfikator encji ma postać domena.nazwa, np. light.salon")
+            raise ValueError(t("ha.bad_entity_id"))
         return text
 
 
@@ -100,7 +101,7 @@ class SwitchArgs(ToolArgs):
     def _looks_like_entity(cls, value: str) -> str:
         text = value.strip().lower()
         if "." not in text:
-            raise ValueError("identyfikator encji ma postać domena.nazwa, np. light.salon")
+            raise ValueError(t("ha.bad_entity_id"))
         return text
 
     @field_validator("action")
@@ -172,9 +173,9 @@ class ListTool(_HomeAssistantTool[ListArgs]):
             self._client.states(domain=args.domain, limit=args.limit)
         )
         if not entities:
-            where = f" w domenie {args.domain}" if args.domain else ""
+            where = f" ({args.domain})" if args.domain else ""
             return ToolResult.success(
-                {"entities": []}, display=f"Home Assistant nie zwrócił żadnych encji{where}"
+                {"entities": []}, display=t("ha.no_entities", detail=where)
             )
         return ToolResult.success(
             {
@@ -279,7 +280,7 @@ def build_home_assistant_tools(
                 args_model=ListArgs,
                 risk=RiskLevel.SAFE,
                 requires_network=True,
-                summary="Pokaż encje Home Assistanta.",
+                summary=t("spec.ha_list"),
             ),
             client,
         ),
@@ -298,7 +299,7 @@ def build_home_assistant_tools(
                 risk=RiskLevel.MEDIUM,
                 requires_network=True,
                 idempotent=False,
-                summary="Włącz lub wyłącz urządzenie w Home Assistancie.",
+                summary=t("spec.ha_switch"),
             ),
             client,
             high_risk=risky,

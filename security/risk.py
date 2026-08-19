@@ -1,24 +1,25 @@
-"""Poziomy ryzyka narzędzi (Faza 7).
+"""Tool risk levels (Phase 7).
 
-Poziom jest **atrybutem narzędzia**, deklarowanym w kodzie — nigdy nie przychodzi
-od modelu językowego. Model wybiera *co* wywołać, a nie *jak groźne* to jest.
+The level is an **attribute of the tool**, declared in the code — it never comes
+from the language model. The model chooses *what* to call, not *how dangerous*
+it is.
 
-Cztery poziomy, w kolejności rosnącej:
+Four levels, in ascending order:
 
 ======== ======================================================== =============
-poziom   znaczenie                                                potwierdzenie
+level    meaning                                                  confirmation
 ======== ======================================================== =============
-SAFE     tylko odczyt, bez efektów ubocznych                      nie
-MEDIUM   ruch sieciowy albo zapis we własnych danych asystenta     nie
-HIGH     zapis poza własnymi danymi, uruchamianie programów        ZAWSZE
-CRITICAL nieodwracalne albo o zasięgu systemowym                   ZAWSZE + zgoda
+SAFE     read only, no side effects                               no
+MEDIUM   network traffic, or a write within the assistant's data  no
+HIGH     writing outside its own data, launching programs         ALWAYS
+CRITICAL irreversible or system-wide                              ALWAYS + consent
 ======== ======================================================== =============
 
-**Uwaga na porównania.** ``RiskLevel`` jest podklasą ``str``, więc operatory
-``<`` i ``>`` porównywałyby *alfabetycznie* („CRITICAL" < „HIGH" < „MEDIUM" <
-„SAFE" — czyli dokładnie odwrotnie niż trzeba). Dlatego kolejność jest wyrażona
-wyłącznie przez :func:`risk_rank`, :func:`at_least` i :func:`escalate`, a w kodzie
-nie wolno porównywać poziomów operatorami.
+**Mind the comparisons.** ``RiskLevel`` is a subclass of ``str``, so the ``<``
+and ``>`` operators would compare *alphabetically* ("CRITICAL" < "HIGH" <
+"MEDIUM" < "SAFE" — that is, exactly backwards). The ordering is therefore
+expressed solely through :func:`risk_rank`, :func:`at_least` and
+:func:`escalate`, and comparing levels with operators is forbidden in the code.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ from typing import Final
 
 
 class RiskLevel(StrEnum):
-    """Poziom ryzyka narzędzia."""
+    """A tool's risk level."""
 
     SAFE = "SAFE"
     MEDIUM = "MEDIUM"
@@ -36,7 +37,7 @@ class RiskLevel(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-# Kolejność rosnąca — jedyne źródło prawdy o tym, co jest „wyżej".
+# Ascending order — the single source of truth about what counts as "higher".
 RISK_ORDER: Final[tuple[RiskLevel, ...]] = (
     RiskLevel.SAFE,
     RiskLevel.MEDIUM,
@@ -46,10 +47,10 @@ RISK_ORDER: Final[tuple[RiskLevel, ...]] = (
 
 _RANKS: Final[dict[str, int]] = {level.value: index for index, level in enumerate(RISK_ORDER)}
 
-# Poziom, od którego potwierdzenie jest OBOWIĄZKOWE. Konfiguracja może obniżyć
-# próg (żądać potwierdzeń już od MEDIUM), ale nigdy go nie podniesie powyżej tej
-# wartości — ustawienie ``SECURITY_REQUIRE_CONFIRM_FROM=CRITICAL`` nie wyłącza
-# potwierdzeń dla HIGH.
+# The level from which confirmation is MANDATORY. Configuration may lower the
+# threshold (demanding confirmations from MEDIUM upwards) but can never raise it
+# above this value — setting ``SECURITY_REQUIRE_CONFIRM_FROM=CRITICAL`` does not
+# disable confirmations for HIGH.
 MANDATORY_CONFIRM_FROM: Final[RiskLevel] = RiskLevel.HIGH
 
 RISK_LABELS_PL: Final[dict[RiskLevel, str]] = {
@@ -68,19 +69,19 @@ RISK_LABELS_EN: Final[dict[RiskLevel, str]] = {
 
 
 def risk_rank(level: RiskLevel | str) -> int:
-    """Pozycja poziomu w kolejności rosnącej (SAFE = 0, CRITICAL = 3).
+    """The level's position in ascending order (SAFE = 0, CRITICAL = 3).
 
-    Nieznana wartość dostaje rangę CRITICAL — nierozpoznany poziom traktujemy
-    jak najgroźniejszy, nigdy jak najłagodniejszy.
+    An unknown value is given the CRITICAL rank — an unrecognised level is
+    treated as the most dangerous one, never as the mildest.
     """
     key = str(level).strip().upper()
     return _RANKS.get(key, _RANKS[RiskLevel.CRITICAL.value])
 
 
 def parse_risk(value: object, *, default: RiskLevel = RiskLevel.CRITICAL) -> RiskLevel:
-    """Zamień dowolny zapis („high", „HIGH", ``RiskLevel.HIGH``) na poziom.
+    """Turn any spelling ("high", "HIGH", ``RiskLevel.HIGH``) into a level.
 
-    Domyślnie CRITICAL: literówka w konfiguracji nie może obniżyć rygoru.
+    CRITICAL by default: a typo in the configuration must not lower the rigour.
     """
     if isinstance(value, RiskLevel):
         return value
@@ -97,10 +98,10 @@ def at_least(level: RiskLevel | str, threshold: RiskLevel | str) -> bool:
 
 
 def escalate(level: RiskLevel, other: RiskLevel) -> RiskLevel:
-    """Wyższy z dwóch poziomów.
+    """The higher of two levels.
 
-    Eskalacja jest jednokierunkowa: narzędzie może na podstawie argumentów
-    podnieść swój poziom (zapis poza katalogiem = HIGH), ale nigdy go obniżyć.
+    Escalation is one-directional: a tool may raise its level based on the
+    arguments (a write outside the directory = HIGH) but never lower it.
     """
     return other if risk_rank(other) > risk_rank(level) else level
 

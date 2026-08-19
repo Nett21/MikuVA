@@ -586,7 +586,7 @@ class ToolRouter:
             preview = await self._sandbox.preview(tool, args, ctx)
             result = ToolResult.success(
                 {"dry_run": True, "preview": preview},
-                display=f"[tryb próbny] {preview}",
+                display=t("tool.dry_run", preview=preview),
             )
             return self._finish(
                 call,

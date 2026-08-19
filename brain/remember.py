@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Final, Literal
 
 from brain.conversation import Message
 from config import Settings, get_settings
+from i18n import t
 
 if TYPE_CHECKING:  # tylko typy — moduł nie zna wnętrza pamięci
     from brain.memory import ChatBackend, ConversationMemory
@@ -316,7 +317,7 @@ def heuristic_judgment(content: str) -> MemoryJudgment:
                     category="fact",
                     key=key,
                     value=value,
-                    reason="rozpoznany wzorzec zdania o użytkowniku",
+                    reason=t("mem.pattern_matched"),
                     method="heuristic",
                 )
 
@@ -326,7 +327,7 @@ def heuristic_judgment(content: str) -> MemoryJudgment:
             category="preference",
             key="",
             value=content,
-            reason="wypowiedź o upodobaniach",
+            reason=t("mem.preference"),
             method="heuristic",
         )
 
@@ -335,7 +336,7 @@ def heuristic_judgment(content: str) -> MemoryJudgment:
         category="note",
         key="",
         value=content,
-        reason="treść nie sprowadza się do pary klucz–wartość",
+        reason=t("mem.not_key_value"),
         method="heuristic",
     )
 

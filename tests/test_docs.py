@@ -195,15 +195,15 @@ def test_readme_ma_sekcje_ograniczen(readme: str) -> None:
     Ktoś, kto usuwa ją przy porządkach, zabiera czytelnikowi jedyne miejsce,
     w którym napisano wprost, czego ten projekt NIE potrafi.
     """
-    assert "## Ograniczenia / Known limitations" in readme
+    assert "## Limitations / Known limitations" in readme
     for temat in (
-        "halucynacj",          # jakość małego modelu
-        "Faster-Whisper",      # jakość STT offline
-        "RVC",                 # opóźnienie konwersji głosu
-        "HIGH i CRITICAL",     # kompromis bezpieczeństwo/wygoda
+        "hallucination",         # jakość małego modelu
+        "Faster-Whisper",        # jakość STT offline
+        "RVC",                   # opóźnienie konwersji głosu
+        "HIGH and CRITICAL",     # kompromis bezpieczeństwo/wygoda
         "Crypton Future Media",  # ograniczenia IP
-        "synchronizacji",      # single-user / single-machine
-        "atrapach",            # zielone testy ≠ działanie na sprzęcie
+        "synchronisation",       # single-user / single-machine
+        "fakes",                 # zielone testy ≠ działanie na sprzęcie
     ):
         assert temat in readme, f"sekcja ograniczeń nie porusza tematu: {temat}"
 
@@ -214,7 +214,7 @@ def test_readme_nie_obiecuje_dzialajacego_rvc(readme: str) -> None:
     README ma to mówić wprost — inaczej ktoś wpisze ścieżkę do modelu i będzie
     szukał, czemu nic się nie dzieje.
     """
-    assert "niezaimplementowana" in readme or "jeszcze nie działa" in readme
+    assert "not implemented" in readme or "not working yet" in readme
 
 
 def test_readme_nie_zawiera_sciezek_z_konkretnej_maszyny(readme: str) -> None:
@@ -304,9 +304,9 @@ def test_readme_zgadza_sie_z_wyborem_skryptu_w_kodzie(readme: str) -> None:
 
 def test_readme_opisuje_zachowanie_przy_awarii_kroku(readme: str) -> None:
     """Obietnica „awaria nie ucina instalacji" jest sprawdzalna i ma być zapisana."""
-    assert "Idempotentność" in readme
+    assert "Idempotence" in readme
     assert "--check-deps" in readme
-    assert "nie ucina instalacji" in readme or "nie przerywa" in readme
+    assert "does not cut the installation short" in readme
 
 
 # --------------------------------------------------------------------------- #
@@ -473,9 +473,9 @@ def test_readme_ostrzega_o_operacjach_wysokiego_ryzyka(readme: str) -> None:
     """
     gora = "\n".join(readme.splitlines()[:120])
     assert "HIGH" in gora and "CRITICAL" in gora
-    assert "potwierdzenia" in gora or "potwierdzenie" in gora or "potwierdzają" in gora
+    assert "confirmation" in gora
     # Obietnica, że nie da się tego wyłączyć.
-    assert "nie pytaj" in gora or "odmowa" in gora
+    assert "stop asking" in gora or "refusal" in gora
 
 
 def test_readme_ma_quick_start_i_liste_faz(readme: str) -> None:
@@ -483,6 +483,6 @@ def test_readme_ma_quick_start_i_liste_faz(readme: str) -> None:
     assert "Quick start" in gora
     for skrypt in ("install-windows.ps1", "install-apt.sh", "install-pacman.sh"):
         assert skrypt in gora, f"Quick start nie wskazuje {skrypt}"
-    assert "Stan projektu" in readme
+    assert "Project status" in readme
     # Faza 15 (RVC) ma być oznaczona jako niegotowa, a nie przemilczana.
     assert "15" in readme and "RVC" in readme

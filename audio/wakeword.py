@@ -56,6 +56,7 @@ from config import (
     get_settings,
     get_user_settings,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class WakeWordError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
@@ -176,16 +177,16 @@ class PhraseMatcher:
         cleaned = phrase.strip()
         if not cleaned:
             raise WakeWordError(
-                "Fraza wybudzająca jest pusta.",
-                hint="ustaw pole wake_word w config/user_settings.json",
+                t("wake.empty_phrase"),
+                hint=t("wake.empty_phrase_hint"),
             )
         self._phrase = cleaned
         self._threshold = threshold
         self._tokens = [token for token, _, _ in tokenize(cleaned)]
         if not self._tokens:
             raise WakeWordError(
-                f"Fraza wybudzająca {cleaned!r} nie zawiera żadnego słowa.",
-                hint="użyj liter, np. „hej miku”",
+                t("wake.no_words", phrase=repr(cleaned)),
+                hint=t("wake.no_words_hint"),
             )
         self._target = " ".join(self._tokens)
         self._target_joined = "".join(self._tokens)
@@ -440,26 +441,23 @@ class OpenWakeWordEngine(_BaseEngine):
         super().__init__(matcher)
         if not model_paths:
             raise WakeWordError(
-                "Nie wskazano modelu openWakeWord.",
-                hint=(
-                    "wpisz ścieżkę w wake_word_model (config/user_settings.json) "
-                    f"albo wrzuć plik modelu do {WAKEWORD_DIR}"
-                ),
+                t("wake.no_model"),
+                hint=t("wake.no_model_hint", directory=WAKEWORD_DIR),
             )
         try:
             from openwakeword.model import Model  # noqa: PLC0415 - ciężki import, celowo leniwy
         except ImportError as exc:
             raise WakeWordError(
-                "Pakiet 'openwakeword' nie jest zainstalowany.",
-                hint="pip install openwakeword albo zostaw WAKE_ENGINE=auto",
+                t("wake.no_package"),
+                hint=t("wake.no_package_hint"),
             ) from exc
 
         try:
             self._model = Model(wakeword_models=[str(path) for path in model_paths])
         except Exception as exc:  # brak onnxruntime, uszkodzony model, zła wersja
             raise WakeWordError(
-                f"Nie udało się wczytać modelu openWakeWord ({exc}).",
-                hint="sprawdź plik modelu i instalację onnxruntime",
+                t("wake.load_failed", error=exc),
+                hint=t("wake.load_hint"),
             ) from exc
 
         self._threshold = threshold
@@ -598,8 +596,8 @@ def create_wake_word_engine(
 
     if transcribe is None:
         raise WakeWordError(
-            "Detektor whisperowy wymaga funkcji transkrypcji.",
-            hint="potok audio wstrzykuje ją sam — ten błąd oznacza błędne użycie API",
+            t("wake.needs_transcribe"),
+            hint=t("wake.needs_transcribe_hint"),
         )
 
     whisper_detector = WhisperWakeWord(

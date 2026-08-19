@@ -124,7 +124,9 @@ def test_adresy_prywatne_i_lokalne_sa_odrzucane(adres: str) -> None:
     """To jest sedno ochrony: model nie może sięgnąć do tej maszyny ani do LAN-u."""
     with pytest.raises(UrlRefusedError) as blad:
         check_url(adres, policy())
-    assert "lokaln" in blad.value.message or "publicznym" in blad.value.message
+    # Sprawdzamy SEDNO odmowy, nie brzmienie zdania: komunikat idzie przez
+    # i18n i zależy od UI_LANGUAGE, a to, że adres został odrzucony — nie.
+    assert "local" in blad.value.message or "not a public" in blad.value.message
 
 
 def test_nazwa_wskazujaca_na_adres_prywatny_tez_jest_odrzucana(
@@ -155,7 +157,7 @@ def test_wlasna_instancja_w_sieci_lokalnej_da_sie_dopuscic_swiadomie() -> None:
 def test_adres_z_loginem_i_haslem_jest_odrzucany() -> None:
     with pytest.raises(UrlRefusedError) as blad:
         check_url("https://user:tajne@example.org/", policy())
-    assert "hasłem" in blad.value.message
+    assert "password" in blad.value.message
 
 
 @pytest.mark.parametrize("port", [22, 25, 3306, 6379, 27017])
@@ -333,7 +335,7 @@ def test_tresc_binarna_nie_jest_pobierana() -> None:
 
     with pytest.raises(NetworkError) as blad:
         run(fetch("https://example.org/obraz.png", policy=policy(), client=client_for(handler)))
-    assert "nie jest tekstem" in blad.value.message
+    assert "not text" in blad.value.message
 
 
 @pytest.mark.parametrize(
@@ -355,7 +357,7 @@ def test_przekroczony_czas_daje_komunikat_a_nie_wyjatek_biblioteki() -> None:
 
     with pytest.raises(NetworkError) as blad:
         run(fetch("https://example.org/", policy=policy(), client=client_for(handler)))
-    assert "nie odpowiedział" in blad.value.message
+    assert "did not answer" in blad.value.message
 
 
 def test_brak_polaczenia_daje_komunikat_z_podpowiedzia() -> None:
@@ -364,7 +366,7 @@ def test_brak_polaczenia_daje_komunikat_z_podpowiedzia() -> None:
 
     with pytest.raises(NetworkError) as blad:
         run(fetch("https://example.org/", policy=policy(), client=client_for(handler)))
-    assert "połączyć" in blad.value.message
+    assert "connect" in blad.value.message
     assert "internet" in blad.value.hint
 
 
@@ -381,7 +383,7 @@ def test_brak_odpowiedzi_dns_jest_bledem_sieci_nie_adresu(
     monkeypatch.setattr(host.http.socket, "getaddrinfo", failing)
     with pytest.raises(NetworkError) as blad:
         check_url("https://nie-ma-takiej-domeny.example/", policy())
-    assert "rozwiązać nazwy" in blad.value.message
+    assert "resolve the name" in blad.value.message
 
 
 # --------------------------------------------------------------------------- #
@@ -399,7 +401,7 @@ def test_przekierowanie_jest_sprawdzane_od_nowa() -> None:
 
     with pytest.raises(UrlRefusedError) as blad:
         run(fetch("https://example.org/", policy=policy(), client=client_for(handler)))
-    assert "publicznym" in blad.value.message
+    assert "not a public" in blad.value.message
 
 
 def test_przekierowanie_na_adres_publiczny_jest_podejmowane() -> None:
@@ -427,7 +429,7 @@ def test_petla_przekierowan_ma_koniec() -> None:
                 client=client_for(handler),
             )
         )
-    assert "przekierowań" in blad.value.message
+    assert "redirect" in blad.value.message
 
 
 # --------------------------------------------------------------------------- #

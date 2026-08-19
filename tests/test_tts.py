@@ -282,7 +282,7 @@ def test_brak_jakiegokolwiek_glosu_daje_czytelny_blad(settings: Settings) -> Non
     with pytest.raises(TTSUnavailableError) as info:
         provider.load()
 
-    assert "głosu" in info.value.message
+    assert "voice" in info.value.message
     assert "prepare_offline" in info.value.user_message
 
 
@@ -565,7 +565,7 @@ def test_niezerowy_kod_wyjscia_konczy_sie_bledem(
     finally:
         audio.tts.subprocess.Popen = FakePopen  # type: ignore[assignment]
 
-    assert "kodem 2" in info.value.message
+    assert "code 2" in info.value.message
 
 
 def test_brak_programu_daje_czytelny_komunikat(

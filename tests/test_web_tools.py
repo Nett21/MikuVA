@@ -181,7 +181,7 @@ def test_brak_wynikow_daje_zrozumialy_komunikat() -> None:
     narzedzia = tools_from(build_web_tools, handler)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["web.search"].run(SearchArgs(query="cokolwiek"), ctx()))
-    assert "nie zwróciła wyników" in blad.value.message
+    assert "no results" in blad.value.message
 
 
 def test_wyszukiwanie_przez_searxng_czyta_json() -> None:
@@ -212,7 +212,7 @@ def test_blad_sieci_w_wyszukiwaniu_nie_wywala_asystenta() -> None:
 
     # Komunikat mówi, co się stało i co z tym zrobić — to on trafia do modelu,
     # a potem do użytkownika (także na głos).
-    assert "połączyć" in blad.value.message and "internet" in blad.value.message
+    assert "connect" in blad.value.message and "internet" in blad.value.message
 
 
 # --------------------------------------------------------------------------- #
@@ -285,7 +285,7 @@ def test_strona_bez_tekstu_mowi_o_javascripcie() -> None:
     narzedzia = tools_from(build_web_tools, handler)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["web.fetch"].run(FetchArgs(url="https://app.example/"), ctx()))
-    assert "JavaScriptu" in blad.value.message
+    assert "JavaScript" in blad.value.message
 
 
 def test_json_z_api_jest_zwracany_jako_tekst() -> None:
@@ -406,7 +406,7 @@ def test_nieznane_miejsce_daje_czytelny_blad() -> None:
     narzedzia = tools_from(build_weather_tools, handler)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["weather.current"].run(WeatherArgs(location="Xyzabc"), ctx()))
-    assert "nie znalazłam miejsca" in blad.value.message
+    assert "could not find a place" in blad.value.message
 
 
 def test_padniety_serwis_pogodowy_nie_zatrzymuje_asystenta() -> None:
@@ -534,7 +534,7 @@ def test_kanal_z_deklaracja_encji_jest_odrzucany() -> None:
     )
     with pytest.raises(ContentError) as blad:
         parse_feed(bomba)
-    assert "encji" in blad.value.message
+    assert "XML entity" in blad.value.message
 
 
 def test_niepoprawny_xml_daje_zrozumialy_blad() -> None:
@@ -643,7 +643,7 @@ def test_film_bez_napisow_mowi_o_tym_wprost() -> None:
     narzedzia = tools_from(build_youtube_tools, handler)
     with pytest.raises(ToolError) as blad:
         run(narzedzia["youtube.transcript"].run(TranscriptArgs(video="dQw4w9WgXcQ"), ctx()))
-    assert "nie ma dostępnych napisów" in blad.value.message
+    assert "no subtitles available" in blad.value.message
 
 
 def test_odtworzenie_filmu_pyta_o_zgode_i_pokazuje_adres(

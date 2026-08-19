@@ -38,6 +38,7 @@ from tools.base import (
     ToolSpec,
     make_tool,
 )
+from i18n import t
 
 # Nazwy własne, nie zależne od locale maszyny (patrz docstring modułu).
 _WEEKDAYS_PL: Final[tuple[str, ...]] = (
@@ -244,7 +245,7 @@ class ServiceListTool(_ServiceTool[ServiceListArgs]):
         active = [item.unit for item in services if item.active == "active"]
         return ToolResult.success(
             {"count": len(services), "services": [item.to_dict() for item in services]},
-            display=f"{len(services)} usług użytkownika, aktywnych: {len(active)}",
+            display=t("svc.summary", count=len(services), active=len(active)),
         )
 
 
@@ -317,7 +318,7 @@ def build_service_tools(*, runner: Any | None = None) -> Sequence[Tool[Any]]:
                     "List the user's own background services and whether they are running "
                     "(systemctl --user). Read-only."
                 ),
-                summary="usługi użytkownika (tylko odczyt)",
+                summary=t("spec.svc_list"),
                 args_model=ServiceListArgs,
                 risk=RiskLevel.SAFE,
                 timeout_s=20.0,
@@ -328,7 +329,7 @@ def build_service_tools(*, runner: Any | None = None) -> Sequence[Tool[Any]]:
             ToolSpec(
                 name="service.status",
                 description="Check the state of one user service by unit name. Read-only.",
-                summary="stan usługi użytkownika",
+                summary=t("spec.svc_status"),
                 args_model=ServiceStatusArgs,
                 risk=RiskLevel.SAFE,
                 timeout_s=20.0,
@@ -342,7 +343,7 @@ def build_service_tools(*, runner: Any | None = None) -> Sequence[Tool[Any]]:
                     "Start, stop or restart one of the user's own services. Never system-wide "
                     "services, never with sudo. Requires the user's confirmation."
                 ),
-                summary="start/stop/restart usługi użytkownika (wymaga zgody)",
+                summary=t("spec.svc_control"),
                 args_model=ServiceControlArgs,
                 risk=RiskLevel.HIGH,
                 timeout_s=30.0,

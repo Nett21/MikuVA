@@ -98,7 +98,7 @@ def test_brak_glosnika_daje_podpowiedz(
     with pytest.raises(AudioOutputUnavailableError) as info:
         output.open(22_050)
 
-    assert "głośnika" in info.value.message
+    assert "speaker" in info.value.message
 
 
 def test_nieznane_urzadzenie_z_konfiguracji_wymienia_dostepne(

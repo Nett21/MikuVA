@@ -18,6 +18,7 @@ import httpx
 
 from brain.conversation import Message, select_for_model
 from config import Settings, get_settings
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class LLMError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
@@ -200,16 +201,15 @@ class OllamaClient:
     def _connection_error(self, exc: Exception) -> LLMConnectionError:
         logger.error("Brak połączenia z Ollamą pod %s: %s", self.host, exc, exc_info=True)
         return LLMConnectionError(
-            f"Nie mogę połączyć się z Ollamą pod adresem {self.host}.",
-            hint="sprawdź, czy usługa działa (`ollama serve`) i czy OLLAMA_HOST w .env jest poprawny",
+            t("llm.connect_failed", host=self.host),
+            hint=t("llm.connect_hint"),
         )
 
     def _timeout_error(self, exc: Exception) -> LLMTimeoutError:
         logger.error("Przekroczono limit czasu Ollamy (%s): %s", self.host, exc, exc_info=True)
         return LLMTimeoutError(
-            "Model nie odpowiedział w wyznaczonym czasie "
-            f"({self._settings.ollama_read_timeout:.0f} s).",
-            hint="zwiększ OLLAMA_READ_TIMEOUT w .env albo wybierz mniejszy model",
+            t("llm.timeout", seconds=f"{self._settings.ollama_read_timeout:.0f}"),
+            hint=t("llm.timeout_hint"),
         )
 
     def _status_error(self, status_code: int, body: str) -> LLMError:
@@ -220,19 +220,19 @@ class OllamaClient:
                 detail = str(parsed["error"])
         except json.JSONDecodeError:
             pass
-        detail = detail[:500] or "brak szczegółów"
+        detail = detail[:500] or t("llm.no_details")
 
         if status_code == _HTTP_NOT_FOUND:
             logger.error("Model %s nie został znaleziony: %s", self.model, detail)
             return LLMModelNotFoundError(
-                f"Model '{self.model}' nie jest dostępny w Ollamie.",
-                hint=f"pobierz go poleceniem: ollama pull {self.model}",
+                t("llm.model_missing", model=self.model),
+                hint=t("llm.pull_hint", model=self.model),
             )
 
         logger.error("Ollama zwróciła HTTP %s: %s", status_code, detail)
         return LLMResponseError(
-            f"Ollama zwróciła błąd HTTP {status_code}: {detail}",
-            hint="szczegóły w logs/errors.log",
+            t("llm.http_error", status=status_code, body=detail),
+            hint=t("llm.details_in_log"),
         )
 
     # --- operacje -------------------------------------------------------- #
@@ -267,8 +267,8 @@ class OllamaClient:
             data = response.json()
         except ValueError as exc:
             raise LLMResponseError(
-                "Ollama zwróciła odpowiedź, której nie da się odczytać jako JSON.",
-                hint="szczegóły w logs/errors.log",
+                t("llm.bad_json"),
+                hint=t("llm.details_in_log"),
             ) from exc
 
         models = data.get("models") if isinstance(data, dict) else None

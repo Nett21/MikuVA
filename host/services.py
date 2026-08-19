@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 from config import PlatformInfo, detect_platform, subprocess_no_window_kwargs
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -101,20 +102,19 @@ def _run(argv: list[str], *, runner: Any | None = None) -> subprocess.CompletedP
             **subprocess_no_window_kwargs(),
         )
     except subprocess.TimeoutExpired as exc:
-        raise ServiceRefusedError("systemctl nie odpowiedział w wyznaczonym czasie") from exc
+        raise ServiceRefusedError(t("svc.timeout")) from exc
     except (OSError, ValueError) as exc:
-        raise ServiceRefusedError(f"nie udało się wywołać systemctl: {exc}") from exc
+        raise ServiceRefusedError(t("svc.call_failed", error=exc)) from exc
 
 
 def check_unit(unit: str) -> str:
     """Sprawdź i znormalizuj nazwę jednostki."""
     name = str(unit or "").strip()
     if not name:
-        raise ServiceRefusedError("nie podano nazwy usługi")
+        raise ServiceRefusedError(t("svc.no_name"))
     if not _UNIT_PATTERN.match(name):
         raise ServiceRefusedError(
-            f"'{name}' nie wygląda na nazwę usługi systemd (dozwolone: litery, cyfry, "
-            "kropka, kreska, podkreślenie, @)"
+            t("svc.bad_name", name=name)
         )
     return name
 
@@ -194,8 +194,7 @@ def control_service(
     verb = str(action or "").strip().lower()
     if verb not in ALLOWED_ACTIONS:
         raise ServiceRefusedError(
-            f"dozwolone działania to {', '.join(ALLOWED_ACTIONS)} — 'enable' i 'disable' "
-            "są świadomie niedostępne, bo zmieniają konfigurację na stałe"
+            t("svc.bad_action", actions=", ".join(ALLOWED_ACTIONS))
         )
 
     binary = systemctl_path() or "systemctl"
@@ -203,8 +202,10 @@ def control_service(
     code = int(getattr(completed, "returncode", 1) or 0)
     if code != 0:
         detail = (getattr(completed, "stderr", "") or "").strip()[:200]
-        raise ServiceRefusedError(f"systemctl --user {verb} {name} zakończyło się błędem: {detail}")
-    return f"{verb} usługi użytkownika {name} wykonane"
+        raise ServiceRefusedError(
+            t("svc.failed", action=verb, name=name, detail=detail)
+        )
+    return t("svc.done", action=verb, name=name)
 
 
 def describe_backend(platform_info: PlatformInfo | None = None) -> str:

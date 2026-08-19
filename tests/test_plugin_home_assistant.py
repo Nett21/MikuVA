@@ -347,7 +347,7 @@ def test_nieznana_akcja_jest_odrzucana(action: str) -> None:
 
 
 def test_identyfikator_bez_kropki_jest_odrzucany() -> None:
-    with pytest.raises(ValueError, match=r"domena\.nazwa"):
+    with pytest.raises(ValueError, match=r"domain\.name"):
         SwitchArgs(entity_id="salon", action="on")
 
 
@@ -364,7 +364,7 @@ def test_niedostepny_serwer_to_czytelny_blad_a_nie_awaria() -> None:
     with pytest.raises(ToolError) as error:
         run(tool.run(EntityArgs(entity_id="light.salon"), tool_context()))
 
-    assert "połączyć" in str(error.value)
+    assert "connect" in str(error.value)
     assert TOKEN not in str(error.value)
 
 

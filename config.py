@@ -135,7 +135,7 @@ class ConfigError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
@@ -598,7 +598,7 @@ class Settings(BaseSettings):
         host = value.strip().rstrip("/")
         if not host.startswith(("http://", "https://")):
             raise ValueError(
-                f"OLLAMA_HOST musi zaczynać się od http:// lub https:// (otrzymano: {value!r})"
+                t("cfg.bad_ollama_host", value=repr(value))
             )
         return host
 
@@ -607,7 +607,7 @@ class Settings(BaseSettings):
     def _validate_non_empty(cls, value: str) -> str:
         stripped = value.strip()
         if not stripped:
-            raise ValueError("wartość nie może być pusta")
+            raise ValueError(t("cfg.empty_value"))
         return stripped
 
     @field_validator("whisper_language")
@@ -621,9 +621,7 @@ class Settings(BaseSettings):
         stripped = value.strip()
         if stripped.isdigit():
             raise ValueError(
-                f"{(info.field_name or 'urządzenie').upper()} musi być fragmentem NAZWY "
-                "urządzenia, nie indeksem — "
-                "indeksy oznaczają inny sprzęt na każdym komputerze"
+                t("cfg.device_by_name", field=(info.field_name or "device").upper())
             )
         return stripped
 
@@ -644,7 +642,7 @@ class Settings(BaseSettings):
         level = value.strip().upper()
         allowed = {"CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"}
         if level not in allowed:
-            raise ValueError(f"LOG_LEVEL musi być jednym z: {', '.join(sorted(allowed))}")
+            raise ValueError(t("cfg.bad_log_level", allowed=", ".join(sorted(allowed))))
         return level
 
     @field_validator("security_require_confirm_from")
@@ -725,8 +723,8 @@ def _instantiate_settings() -> Settings:
         return Settings()
     except ValidationError as exc:
         raise ConfigError(
-            "Nieprawidłowe wartości w pliku .env:\n" + _format_validation_error(exc),
-            hint=f"popraw plik {ENV_FILE} albo porównaj go z .env.example",
+            t("cfg.bad_env_values", details=_format_validation_error(exc)),
+            hint=t("cfg.fix_env", path=ENV_FILE),
         ) from exc
     except Exception as exc:  # np. brak python-dotenv przy odczycie env_file
         logger.warning(
@@ -736,8 +734,8 @@ def _instantiate_settings() -> Settings:
             return Settings(_env_file=None)  # type: ignore[call-arg]
         except ValidationError as inner:
             raise ConfigError(
-                "Nieprawidłowe wartości konfiguracji:\n" + _format_validation_error(inner),
-                hint="sprawdź zmienne środowiskowe aplikacji",
+                t("cfg.bad_config_values", details=_format_validation_error(inner)),
+                hint=t("cfg.check_env_vars"),
             ) from inner
 
 
@@ -1896,7 +1894,7 @@ class UserSettings(BaseModel):
     def _clean_name(cls, value: str) -> str:
         cleaned = _strip_control_characters(value)
         if not cleaned:
-            raise ValueError("assistant_name nie może być pusty")
+            raise ValueError(t("cfg.empty_assistant_name"))
         return cleaned
 
     @field_validator("personality_traits")
@@ -2282,8 +2280,8 @@ def save_user_settings(
             validated = UserSettings.model_validate(merged)
         except ValidationError as exc:
             raise ConfigError(
-                "Nie zapisano ustawień — nieprawidłowe wartości:\n" + _format_validation_error(exc),
-                hint=f"sprawdź wartości przekazane do save_user_settings() lub plik {target}",
+                t("cfg.not_saved", details=_format_validation_error(exc)),
+                hint=t("cfg.check_saved_values", path=target),
             ) from exc
 
         to_write = _deep_merge(merged, validated.model_dump())
@@ -2291,8 +2289,8 @@ def save_user_settings(
             _write_json_atomic(target, to_write)
         except OSError as exc:
             raise ConfigError(
-                f"Nie udało się zapisać pliku {target}: {exc}",
-                hint="sprawdź uprawnienia do katalogu konfiguracji",
+                t("cfg.write_failed", path=target, error=exc),
+                hint=t("cfg.write_hint"),
             ) from exc
 
         _user_settings_cache = validated

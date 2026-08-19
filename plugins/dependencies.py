@@ -22,6 +22,7 @@ from config import (
     Settings,
     register_dependency_check,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,8 @@ def check_plugins(context: DependencyContext) -> list[DependencyCheck]:
                 category="feature",
                 required=False,
                 ok=False,
-                detail="wyłączone (PLUGINS_ENABLED=false)",
-                hint="ustaw PLUGINS_ENABLED=true, żeby wczytać rozszerzenia z plugins/",
+                detail=t("plug.disabled"),
+                hint=t("plug.disabled_hint"),
                 phase=11,
             )
         ]
@@ -80,7 +81,7 @@ def check_plugins(context: DependencyContext) -> list[DependencyCheck]:
                 category="feature",
                 required=False,
                 ok=False,
-                detail=f"warstwa pluginów niedostępna ({exc})",
+                detail=t("plug.layer_unavailable", error=exc),
                 phase=11,
             )
         ]

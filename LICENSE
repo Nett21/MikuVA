@@ -21,27 +21,27 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---------------------------------------------------------------------------
-UWAGA — zakres tej licencji
+NOTE — the scope of this licence
 ---------------------------------------------------------------------------
 
-Powyższa licencja MIT dotyczy WYŁĄCZNIE kodu źródłowego tego projektu.
+The MIT licence above applies ONLY to the source code of this project.
 
-NIE obejmuje i nie może obejmować:
+It does not, and cannot, cover:
 
-  * postaci, nazwy i głosu **Hatsune Miku** — to własność Crypton Future
-    Media, Inc. Projekt nie jest z nią powiązany, autoryzowany ani
-    sponsorowany. Repozytorium nie zawiera i nie rozprowadza żadnych
-    oficjalnych plików głosowych ani materiałów treningowych Crypton;
+  * the character, name and voice of **Hatsune Miku** — the property of Crypton
+    Future Media, Inc. This project is not affiliated with, authorised by, or
+    sponsored by them. The repository contains and distributes no official
+    voice files or training material from Crypton;
 
-  * **modeli językowych** pobieranych przez Ollamę — każdy ma własną licencję
-    (Qwen: Apache 2.0, Llama: Meta Llama License i tak dalej);
+  * the **language models** downloaded through Ollama — each carries its own
+    licence (Qwen: Apache 2.0, Llama: Meta Llama License, and so on);
 
-  * **modeli Whispera, głosów Pipera i modeli embeddingów** — pobierane
-    osobno, każdy na własnych warunkach;
+  * the **Whisper models, Piper voices and embedding models** — downloaded
+    separately, each on its own terms;
 
-  * **modeli RVC**, które użytkownik podłącza sam. Za legalność własnych
-    plików modeli odpowiada użytkownik: modele trenowane na czyimś głosie
-    bywają objęte prawami autorskimi oraz prawami do wizerunku i głosu,
-    a ich status prawny różni się między krajami.
+  * **RVC models** that the user supplies themselves. The user is responsible
+    for the legality of their own model files: models trained on somebody's
+    voice may be covered by copyright and by likeness/voice rights, and their
+    legal status differs between countries.
 
-Szczegóły: sekcja „Ograniczenia / Known limitations" w README.md.
+Details: the "Limitations / Known limitations" section in README.md.

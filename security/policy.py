@@ -150,10 +150,7 @@ class SecurityPolicy:
             return PolicyDecision(
                 allowed=False,
                 risk=risk,
-                reason=(
-                    "narzędzia o ryzyku CRITICAL są wyłączone "
-                    "(SECURITY_ALLOW_CRITICAL=false)"
-                ),
+                reason=t("policy.critical_disabled"),
             )
 
         if calls_this_turn >= self.max_calls_per_turn:
@@ -161,8 +158,7 @@ class SecurityPolicy:
                 allowed=False,
                 risk=risk,
                 reason=(
-                    f"wyczerpany budżet {self.max_calls_per_turn} wywołań narzędzi w tej turze "
-                    "(TOOLS_MAX_CALLS_PER_TURN)"
+                    t("policy.budget_spent", limit=self.max_calls_per_turn)
                 ),
             )
 

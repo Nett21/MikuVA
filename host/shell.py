@@ -52,6 +52,7 @@ from config import (
     path_from_env,
     subprocess_no_window_kwargs,
 )
+from i18n import t
 from host.privileges import refuse_if_privileged
 
 logger = logging.getLogger(__name__)
@@ -257,29 +258,27 @@ def resolve_binary(
     # („/tmp/git"), więc nie przyjmujemy ścieżek w ogóle.
     if any(separator in raw for separator in ("/", "\\")) or raw.startswith("."):
         raise CommandBlockedError(
-            f"podaj nazwę programu z listy dozwolonych, nie ścieżkę ('{raw}')"
+            t("shell.path_not_name", raw=raw)
         )
 
     lowered = raw.lower()
     stem = lowered.removesuffix(".exe").removesuffix(".cmd").removesuffix(".bat")
     if stem in HARD_BLOCKED_BINARIES or lowered in HARD_BLOCKED_BINARIES:
         raise CommandBlockedError(
-            f"program '{raw}' jest zablokowany na stałe (podnoszenie uprawnień, "
-            "operacje na nośnikach albo zmiany systemowe)"
+            t("shell.hard_blocked", name=raw)
         )
     if not policy.enabled:
         raise CommandBlockedError(
-            "uruchamianie programów jest wyłączone — lista SHELL_ALLOWED_BINARIES jest pusta"
+            t("shell.disabled")
         )
     if stem not in policy.allowed and lowered not in policy.allowed:
         raise CommandBlockedError(
-            f"program '{raw}' nie jest na liście SHELL_ALLOWED_BINARIES "
-            f"({', '.join(policy.allowed)})"
+            t("shell.not_allowed", name=raw, allowed=", ".join(policy.allowed))
         )
 
     found = shutil.which(raw)
     if not found:
-        raise CommandBlockedError(f"nie znalazłam programu '{raw}' w PATH tej maszyny")
+        raise CommandBlockedError(t("shell.not_found", name=raw))
     resolved = Path(os.path.realpath(found))
 
     reason = _untrusted_location(resolved, info)
@@ -343,16 +342,12 @@ def check_arguments(argv: Sequence[str]) -> None:
         lowered = text.strip().lower()
         if lowered in INLINE_SCRIPT_FLAGS:
             raise CommandBlockedError(
-                f"flaga '{text}' uruchamia dowolny tekst w powłoce i jest zablokowana. "
-                "Uruchom program wprost, z argumentami — potoki i przekierowania nie są "
-                "obsługiwane (i to jest celowe)."
+                t("shell.inline_flag", flag=text)
             )
         for metacharacter in SHELL_METACHARACTERS:
             if metacharacter in text:
                 raise CommandBlockedError(
-                    f"argument '{text}' zawiera znak powłoki '{metacharacter}'. "
-                    "Program jest uruchamiany BEZ powłoki, więc taki znak nie zadziała — "
-                    "a wygląda na próbę wstrzyknięcia polecenia."
+                    t("shell.metacharacter", argument=text, character=metacharacter)
                 )
 
     joined = " ".join(str(item) for item in argv)
@@ -407,10 +402,12 @@ def run_command(
         )
     except subprocess.TimeoutExpired as exc:
         raise CommandBlockedError(
-            f"program '{argv[0]}' nie zakończył się w {policy.timeout_s:.0f} s — przerwany"
+            t("shell.timeout", name=argv[0], seconds=f"{policy.timeout_s:.0f}")
         ) from exc
     except (OSError, ValueError) as exc:
-        raise CommandBlockedError(f"nie udało się uruchomić '{argv[0]}': {exc}") from exc
+        raise CommandBlockedError(
+            t("shell.spawn_failed", name=argv[0], error=exc)
+        ) from exc
 
     duration_ms = int((time.perf_counter() - started) * 1000)
     stdout, cut_out = _limit(getattr(completed, "stdout", "") or "", policy.max_output_chars)

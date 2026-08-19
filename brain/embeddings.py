@@ -37,6 +37,7 @@ from config import (
     is_offline,
     resolve_compute_device,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ class EmbeddingError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
@@ -171,22 +172,15 @@ class SentenceTransformerProvider:
                 from sentence_transformers import SentenceTransformer
             except ImportError as exc:
                 raise EmbeddingUnavailableError(
-                    "Pakiet sentence-transformers nie jest zainstalowany.",
-                    hint=(
-                        "zainstaluj go (pip install sentence-transformers) albo "
-                        "przełącz się na embeddingi z Ollamy: EMBEDDING_ENGINE=ollama"
-                    ),
+                    t("emb.no_package"),
+                    hint=t("emb.no_package_hint"),
                 ) from exc
 
             local = find_local_embedding_model(self._model_name, self._cache_dir)
             if local is None and not self._allow_download:
                 raise EmbeddingUnavailableError(
-                    f"Modelu embeddingów '{self._model_name}' nie ma na dysku, "
-                    "a pobieranie jest wyłączone.",
-                    hint=(
-                        "pobierz go zawczasu: python scripts/prepare_offline.py --embeddings "
-                        "(pobieranie blokuje OFFLINE_MODE albo EMBEDDING_ALLOW_DOWNLOAD=false)"
-                    ),
+                    t("emb.model_missing", model=self._model_name),
+                    hint=t("emb.download_hint"),
                 )
 
             # Ścieżka lokalna ma pierwszeństwo: gdy model już jest, biblioteka nie
@@ -203,11 +197,8 @@ class SentenceTransformerProvider:
                 )
             except Exception as exc:
                 raise EmbeddingUnavailableError(
-                    f"Nie udało się wczytać modelu embeddingów '{self._model_name}': {exc}",
-                    hint=(
-                        "sprawdź połączenie albo pobierz model zawczasu: "
-                        "python scripts/prepare_offline.py --embeddings"
-                    ),
+                    t("emb.load_failed", model=self._model_name, error=exc),
+                    hint=t("emb.load_hint"),
                 ) from exc
 
             self._model = model
@@ -260,7 +251,7 @@ class SentenceTransformerProvider:
         self.load()
         model = self._model
         if model is None:  # pragma: no cover - load() rzuca wcześniej
-            raise EmbeddingUnavailableError("Model embeddingów nie został załadowany.")
+            raise EmbeddingUnavailableError(t("emb.not_loaded"))
 
         try:
             raw = model.encode(
@@ -271,8 +262,8 @@ class SentenceTransformerProvider:
             )
         except Exception as exc:
             raise EmbeddingError(
-                f"Liczenie embeddingów nie powiodło się: {exc}",
-                hint="szczegóły w logs/errors.log",
+                t("emb.compute_failed", error=exc),
+                hint=t("emb.details_in_log"),
             ) from exc
 
         return [normalize_vector([float(value) for value in vector]) for vector in raw]
@@ -334,7 +325,7 @@ class OllamaEmbeddingProvider:
             import httpx
         except ImportError as exc:  # pragma: no cover - httpx jest wymaganym pakietem
             raise EmbeddingUnavailableError(
-                f"Brak pakietu httpx potrzebnego do rozmowy z Ollamą ({exc})."
+                t("emb.no_httpx", error=exc)
             ) from exc
         self._client = httpx.Client(
             timeout=httpx.Timeout(
@@ -371,11 +362,8 @@ class OllamaEmbeddingProvider:
             return self._http().post(self._settings.api_url(path), json=payload)
         except Exception as exc:
             raise EmbeddingUnavailableError(
-                f"Nie mogę policzyć embeddingów przez Ollamę pod {self._settings.ollama_host}.",
-                hint=(
-                    "sprawdź, czy usługa działa (`ollama serve`) i czy model jest pobrany: "
-                    f"ollama pull {self._model_name}"
-                ),
+                t("emb.ollama_failed", host=self._settings.ollama_host),
+                hint=t("emb.ollama_hint", model=self._model_name),
             ) from exc
 
     def _embed_batch(self, texts: Sequence[str]) -> list[list[float]]:
@@ -391,8 +379,8 @@ class OllamaEmbeddingProvider:
         vectors = data.get("embeddings") if isinstance(data, dict) else None
         if not isinstance(vectors, list) or len(vectors) != len(texts):
             raise EmbeddingError(
-                "Ollama zwróciła odpowiedź bez embeddingów.",
-                hint=f"sprawdź, czy model '{self._model_name}' w ogóle liczy embeddingi",
+                t("emb.no_embeddings_field"),
+                hint=t("emb.no_embeddings_hint", model=self._model_name),
             )
         return [[float(value) for value in vector] for vector in vectors]
 
@@ -402,7 +390,7 @@ class OllamaEmbeddingProvider:
         data = response.json()
         vector = data.get("embedding") if isinstance(data, dict) else None
         if not isinstance(vector, list) or not vector:
-            raise EmbeddingError("Ollama zwróciła odpowiedź bez embeddingu.")
+            raise EmbeddingError(t("emb.no_embedding_field"))
         return [float(value) for value in vector]
 
     def _raise_for_status(self, response: Any) -> None:
@@ -411,10 +399,12 @@ class OllamaEmbeddingProvider:
         detail = str(getattr(response, "text", ""))[:300]
         if response.status_code == 404:
             raise EmbeddingUnavailableError(
-                f"Ollama nie ma modelu embeddingów '{self._model_name}'.",
-                hint=f"pobierz go: ollama pull {self._model_name}",
+                t("emb.ollama_model_missing", model=self._model_name),
+                hint=t("emb.pull_hint", model=self._model_name),
             )
-        raise EmbeddingError(f"Ollama zwróciła HTTP {response.status_code}: {detail}")
+        raise EmbeddingError(
+            t("emb.ollama_http", status=response.status_code, body=detail)
+        )
 
     def close(self) -> None:
         if self._owns_client and self._client is not None:

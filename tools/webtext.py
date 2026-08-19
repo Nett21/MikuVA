@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from html.parser import HTMLParser
 from typing import Final
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +203,7 @@ def extract_readable(content: str, *, max_chars: int = 6_000) -> Article:
         parser.close()
     except Exception as exc:  # pragma: no cover - uszkodzony HTML
         logger.debug("Nie udało się rozłożyć HTML-a: %s", exc)
-        raise ContentError("nie udało się odczytać treści strony") from exc
+        raise ContentError(t("content.unreadable")) from exc
 
     title, body = parser.result()
     text, truncated = clip(clean_text(body), max_chars)
@@ -254,10 +255,10 @@ def parse_feed(content: str, *, limit: int = 10, source: str = "") -> list[FeedI
     """
     text = str(content or "").strip()
     if not text:
-        raise ContentError("kanał jest pusty")
+        raise ContentError(t("content.empty_feed"))
     if _XML_DANGEROUS.search(text[:4_000]):
         raise ContentError(
-            "kanał zawiera deklarację encji XML (DOCTYPE/ENTITY) — nie przetwarzam go"
+            t("content.xml_entities")
         )
 
     from xml.etree import ElementTree  # noqa: PLC0415 - import lokalny, tylko tutaj potrzebny
@@ -265,7 +266,7 @@ def parse_feed(content: str, *, limit: int = 10, source: str = "") -> list[FeedI
     try:
         root = ElementTree.fromstring(text)
     except ElementTree.ParseError as exc:
-        raise ContentError(f"kanał nie jest poprawnym XML-em ({exc})") from exc
+        raise ContentError(t("content.bad_xml", error=exc)) from exc
 
     items: list[FeedItem] = []
     for element in list(root.iter("item")) + list(root.iter(f"{_ATOM_NS}entry")):
@@ -275,7 +276,7 @@ def parse_feed(content: str, *, limit: int = 10, source: str = "") -> list[FeedI
         if len(items) >= max(1, limit):
             break
     if not items:
-        raise ContentError("w kanale nie ma wpisów")
+        raise ContentError(t("content.no_entries"))
     return items
 
 

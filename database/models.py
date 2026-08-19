@@ -206,7 +206,7 @@ class Fact(Record):
     def _normalize_key(cls, value: str) -> str:
         key = value.strip().lower()
         if not key:
-            raise ValueError("klucz faktu nie może być pusty")
+            raise ValueError(t("rec.fact_key_empty"))
         return key[:120]
 
     @field_validator("value")
@@ -214,7 +214,7 @@ class Fact(Record):
     def _clean_value(cls, value: str) -> str:
         cleaned = value.strip()
         if not cleaned:
-            raise ValueError("wartość faktu nie może być pusta")
+            raise ValueError(t("rec.fact_value_empty"))
         return cleaned
 
     @classmethod
@@ -245,7 +245,7 @@ class Preference(Record):
     def _normalize_key(cls, value: str) -> str:
         key = value.strip().lower()
         if not key:
-            raise ValueError("klucz preferencji nie może być pusty")
+            raise ValueError(t("rec.pref_key_empty"))
         return key[:120]
 
     @field_validator("value")
@@ -253,7 +253,7 @@ class Preference(Record):
     def _clean_value(cls, value: str) -> str:
         cleaned = value.strip()
         if not cleaned:
-            raise ValueError("wartość preferencji nie może być pusta")
+            raise ValueError(t("rec.pref_value_empty"))
         return cleaned
 
     @classmethod
@@ -282,7 +282,7 @@ class Note(Record):
     def _clean_body(cls, value: str) -> str:
         cleaned = value.strip()
         if not cleaned:
-            raise ValueError("treść notatki nie może być pusta")
+            raise ValueError(t("rec.note_body_empty"))
         return cleaned
 
     @field_validator("tags")

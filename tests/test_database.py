@@ -93,7 +93,9 @@ def test_uszkodzona_baza_daje_czytelny_blad(tmp_path: Path) -> None:
     path.write_bytes(b"to zdecydowanie nie jest baza SQLite" * 10)
     with pytest.raises(DatabaseError) as blad:
         Database(path)
-    assert "logs" in blad.value.user_message or "uszkodzony" in blad.value.user_message
+    # Komunikat idzie przez i18n; sprawdzamy, że NIESIE PODPOWIEDŹ, co zrobić —
+    # a nie jak ta podpowiedź brzmi w bieżącym języku interfejsu.
+    assert "logs" in blad.value.user_message or "damaged" in blad.value.user_message
 
 
 def test_brak_miejsca_na_baze_konczy_sie_wyjatkiem_z_podpowiedzia(tmp_path: Path) -> None:

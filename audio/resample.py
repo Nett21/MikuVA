@@ -1,8 +1,8 @@
-"""Konwersje formatu i częstotliwości próbkowania.
+"""Format and sample-rate conversions.
 
-Whisper wymaga 16 kHz mono, a karty dźwiękowe potrafią narzucić własną
-częstotliwość (na Windowsie typowo 44,1 lub 48 kHz). Te funkcje są czystym
-NumPy — bez zależności natywnych, bez założeń o systemie.
+Whisper requires 16 kHz mono, and sound cards can impose their own rate (on
+Windows typically 44.1 or 48 kHz). These functions are pure NumPy — no native
+dependencies, no assumptions about the system.
 """
 
 from __future__ import annotations
@@ -10,12 +10,13 @@ from __future__ import annotations
 import math
 
 import numpy as np
+from i18n import t
 
 INT16_SCALE: float = 32768.0
 
 
 def to_mono(samples: np.ndarray) -> np.ndarray:
-    """Sprowadź blok audio do jednego kanału (uśrednienie kanałów)."""
+    """Reduce an audio block to a single channel (averaging the channels)."""
     if samples.ndim == 1:
         return samples
     if samples.shape[1] == 1:
@@ -26,14 +27,14 @@ def to_mono(samples: np.ndarray) -> np.ndarray:
 
 
 def int16_to_float32(samples: np.ndarray) -> np.ndarray:
-    """Zamień PCM int16 na float32 w zakresie [-1, 1] (format wejściowy Whispera)."""
+    """Convert int16 PCM to float32 in the range [-1, 1] (Whisper's input format)."""
     if samples.dtype == np.float32:
         return samples
     return (samples.astype(np.float32) / INT16_SCALE).clip(-1.0, 1.0)
 
 
 def float32_to_int16(samples: np.ndarray) -> np.ndarray:
-    """Zamień float32 [-1, 1] na PCM int16."""
+    """Convert float32 [-1, 1] to int16 PCM."""
     if samples.dtype == np.int16:
         return samples
     clipped = np.clip(samples, -1.0, 1.0)
@@ -41,18 +42,18 @@ def float32_to_int16(samples: np.ndarray) -> np.ndarray:
 
 
 def resample_int16(samples: np.ndarray, source_rate: int, target_rate: int) -> np.ndarray:
-    """Przepróbkuj sygnał int16 do docelowej częstotliwości.
+    """Resample an int16 signal to the target rate.
 
-    Dla całkowitej krotności (48000 → 16000, 32000 → 16000) używamy uśredniania
-    kolejnych próbek: działa jak prosty filtr dolnoprzepustowy i ogranicza
-    aliasing. W pozostałych przypadkach interpolacja liniowa.
+    For an integer ratio (48000 → 16000, 32000 → 16000) we average consecutive
+    samples: it acts as a simple low-pass filter and limits aliasing. In the
+    remaining cases, linear interpolation.
 
-    To celowo proste rozwiązanie bez ``scipy``/``soxr`` — dla mowy przed VAD-em
-    i Whisperem jest wystarczające, a nie dokłada zależności natywnej, która
-    musiałaby się skompilować na każdej platformie.
+    This is deliberately simple, without ``scipy``/``soxr`` — for speech ahead of
+    the VAD and Whisper it is sufficient, and it adds no native dependency that
+    would have to compile on every platform.
     """
     if source_rate <= 0 or target_rate <= 0:
-        raise ValueError("częstotliwość próbkowania musi być dodatnia")
+        raise ValueError(t("cfg.sample_rate_positive"))
     if source_rate == target_rate or samples.size == 0:
         return samples
 
@@ -74,7 +75,7 @@ def resample_int16(samples: np.ndarray, source_rate: int, target_rate: int) -> n
 
 
 def rms_dbfs(samples: np.ndarray) -> float:
-    """Poziom skuteczny sygnału w dBFS (−inf dla ciszy absolutnej)."""
+    """The signal's RMS level in dBFS (−inf for absolute silence)."""
     if samples.size == 0:
         return -float("inf")
     as_float = int16_to_float32(samples) if samples.dtype == np.int16 else samples

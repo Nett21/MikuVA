@@ -36,6 +36,7 @@ from audio.microphone import suppressed_native_stderr
 from audio.resample import resample_int16
 from audio.tts import SpeechChunk
 from config import Settings, get_settings, get_user_settings, pip_install_hint
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ class AudioOutputError(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.hint:
-            return f"{self.message}\n       Podpowiedź: {self.hint}"
+            return f"{self.message}\n" + t("cli.voice.hint", detail=self.hint)
         return self.message
 
 
@@ -85,13 +86,13 @@ def _load_sounddevice() -> ModuleType:
         import sounddevice  # noqa: PLC0415 - import celowo leniwy
     except ImportError as exc:
         raise AudioOutputUnavailableError(
-            "Pakiet 'sounddevice' nie jest zainstalowany — odtwarzanie wyłączone.",
+            t("out.no_package"),
             hint=pip_install_hint(),
         ) from exc
     except OSError as exc:
         raise AudioOutputUnavailableError(
-            f"Nie udało się załadować biblioteki PortAudio ({exc}).",
-            hint="zainstaluj PortAudio w systemie albo korzystaj z odpowiedzi tekstowych",
+            t("out.portaudio_failed", error=exc),
+            hint=t("mic.portaudio_hint"),
         ) from exc
     return sounddevice
 
@@ -107,8 +108,8 @@ def list_output_devices(settings: Settings | None = None) -> list[AudioOutputDev
             host_apis = sounddevice.query_hostapis()
     except Exception as exc:  # PortAudioError i wszystko, co rzuci sterownik
         raise AudioOutputUnavailableError(
-            f"Nie udało się odczytać listy urządzeń audio ({exc}).",
-            hint="sprawdź, czy serwer dźwięku działa (PipeWire/PulseAudio/WASAPI/CoreAudio)",
+            t("out.devices_failed", error=exc),
+            hint=t("out.sound_server_hint"),
         ) from exc
 
     devices: list[AudioOutputDevice] = []
@@ -232,8 +233,8 @@ class AudioOutput:
         devices = list_output_devices(self._settings)
         if not devices:
             raise AudioOutputUnavailableError(
-                "System nie zgłasza żadnego urządzenia wyjściowego (głośnika).",
-                hint="podłącz głośnik albo wyłącz mowę: voice_engine w config/user_settings.json",
+                t("out.none_reported"),
+                hint=t("out.none_reported_hint"),
             )
         if not self._device_name:
             return None  # domyślne urządzenie systemowe
@@ -241,8 +242,8 @@ class AudioOutput:
         if match is None:
             available = ", ".join(device.name for device in devices[:8])
             raise AudioOutputUnavailableError(
-                f"Nie znaleziono głośnika pasującego do '{self._device_name}'.",
-                hint=f"dostępne urządzenia: {available}",
+                t("out.not_matched", name=self._device_name),
+                hint=t("out.available_devices", devices=available),
             )
         return match
 
@@ -317,9 +318,11 @@ class AudioOutput:
                 return
 
             raise AudioOutputUnavailableError(
-                "Nie udało się otworzyć wyjścia audio"
-                + (f" ({last_error})." if last_error else "."),
-                hint="sprawdź, czy serwer dźwięku działa i czy urządzenie nie jest zajęte",
+                t(
+                    "out.open_failed",
+                    error=f" ({last_error})." if last_error else ".",
+                ),
+                hint=t("out.open_failed_hint"),
             )
 
     # --- ścieżka danych ----------------------------------------------------- #

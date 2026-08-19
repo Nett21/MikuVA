@@ -119,7 +119,7 @@ def test_podnoszenie_uprawnien_jest_zablokowane(program: str) -> None:
     assert program in HARD_BLOCKED_BINARIES
     with pytest.raises(CommandBlockedError) as blad:
         resolve_binary(program, policy(allowed=(program,)))
-    assert "zablokowany na stałe" in blad.value.message
+    assert "permanently blocked" in blad.value.message
 
 
 @pytest.mark.parametrize("program", ["mkfs", "dd", "diskpart", "shutdown", "reg", "iptables"])
@@ -137,7 +137,7 @@ def test_metaznaki_powloki_w_argumencie_sa_odrzucane(argument: str) -> None:
     """Bez powłoki te znaki nic nie znaczą — ich obecność to próba wstrzyknięcia."""
     with pytest.raises(CommandBlockedError) as blad:
         check_arguments(["git", argument])
-    assert "znak powłoki" in blad.value.message
+    assert "shell character" in blad.value.message
 
 
 @pytest.mark.parametrize("flaga", ["-c", "-lc", "--command", "/c", "-Command", "-EncodedCommand"])
@@ -145,7 +145,7 @@ def test_flagi_uruchamiajace_dowolny_tekst_sa_odrzucane(flaga: str) -> None:
     """``bash -c "..."`` to shell=True w przebraniu."""
     with pytest.raises(CommandBlockedError) as blad:
         check_arguments(["bash", flaga, "echo hej"])
-    assert "zablokowana" in blad.value.message
+    assert "is blocked" in blad.value.message
 
 
 def test_zwykle_polecenie_przechodzi() -> None:
@@ -160,13 +160,13 @@ def test_zwykle_polecenie_przechodzi() -> None:
 def test_pusta_allowlista_wylacza_narzedzie(fake_git: str) -> None:
     with pytest.raises(CommandBlockedError) as blad:
         resolve_binary("git", policy(allowed=()))
-    assert "wyłączone" in blad.value.message
+    assert "disabled" in blad.value.message
 
 
 def test_program_poza_allowlista_jest_odrzucany(fake_git: str) -> None:
     with pytest.raises(CommandBlockedError) as blad:
         resolve_binary("git", policy(allowed=("hostname",)))
-    assert "nie jest na liście" in blad.value.message
+    assert "not on the SHELL_ALLOWED_BINARIES list" in blad.value.message
 
 
 def test_sciezka_zamiast_nazwy_jest_odrzucana() -> None:
@@ -174,7 +174,7 @@ def test_sciezka_zamiast_nazwy_jest_odrzucana() -> None:
     for candidate in ("/usr/bin/git", "./git", "..\\git.exe", "/tmp/git"):
         with pytest.raises(CommandBlockedError) as blad:
             resolve_binary(candidate, policy(allowed=("git",)))
-        assert "nie ścieżkę" in blad.value.message
+        assert "not a path" in blad.value.message
 
 
 def test_program_z_katalogu_niesystemowego_jest_odrzucany(
@@ -198,7 +198,7 @@ def test_brak_programu_w_path_daje_czytelny_blad(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(host.shell.shutil, "which", lambda name: None)
     with pytest.raises(CommandBlockedError) as blad:
         resolve_binary("git", policy())
-    assert "w PATH" in blad.value.message
+    assert "PATH" in blad.value.message
 
 
 # --------------------------------------------------------------------------- #
@@ -256,7 +256,7 @@ def test_przekroczony_czas_konczy_sie_odmowa(fake_git: str) -> None:
 
     with pytest.raises(CommandBlockedError) as blad:
         run_command(["git", "log"], policy(), runner=zwlekajacy)
-    assert "nie zakończył się" in blad.value.message
+    assert "did not finish" in blad.value.message
 
 
 # --------------------------------------------------------------------------- #
@@ -297,7 +297,7 @@ def test_shell_run_odmawia_katalogu_poza_obszarem(tmp_path: Path, fake_git: str)
     tool = tool_for(tmp_path, runner=SpyRunner(), shell_allowed_binaries="git")
     with pytest.raises(ToolError) as blad:
         run(tool.run(ShellRunArgs(argv=["git", "status"], cwd="/etc"), ctx()))
-    assert "poza dozwolonymi katalogami" in blad.value.message
+    assert "outside the allowed directories" in blad.value.message
 
 
 def test_pytanie_o_zgode_pokazuje_pelne_argv(tmp_path: Path) -> None:

@@ -151,7 +151,7 @@ def test_budzet_wywolan_na_ture_zamyka_petle() -> None:
     policy = SecurityPolicy(make_settings(tools_max_calls_per_turn=2))
     assert policy.evaluate(tool="test.echo", risk=RiskLevel.SAFE, calls_this_turn=1).allowed
     wyczerpany = policy.evaluate(tool="test.echo", risk=RiskLevel.SAFE, calls_this_turn=2)
-    assert wyczerpany.denied and "budżet" in wyczerpany.reason
+    assert wyczerpany.denied and "budget" in wyczerpany.reason
 
 
 def test_dane_z_zewnatrz_wymuszaja_potwierdzenie_kolejnego_wywolania() -> None:
@@ -192,7 +192,7 @@ def test_lista_wylaczonych_ma_pierwszenstwo_nad_dozwolonymi() -> None:
 
 def test_brak_kanalu_potwierdzen_to_odmowa() -> None:
     outcome = run(AutoDenyBroker().ask(request_for(RiskLevel.HIGH)))
-    assert not outcome.approved and "brak kanału" in outcome.reason
+    assert not outcome.approved and "no confirmation channel" in outcome.reason
 
 
 def test_terminal_bez_tty_odmawia_bez_pytania() -> None:
@@ -238,7 +238,7 @@ def test_anulowanie_klawiatura_jest_odmowa() -> None:
 
     broker = TerminalConfirmationBroker(reader=przerwij, interactive=True)
     outcome = run(broker.ask(request_for(RiskLevel.HIGH)))
-    assert not outcome.approved and "anulowane" in outcome.reason
+    assert not outcome.approved and "cancelled" in outcome.reason
 
 
 def test_koniec_wejscia_jest_odmowa() -> None:
@@ -261,7 +261,7 @@ def test_spozniona_zgoda_nie_dziala() -> None:
     outcome = run(broker.ask(przedawnione))
 
     assert przedawnione.is_expired()
-    assert not outcome.approved and "ważność" in outcome.reason
+    assert not outcome.approved and "expired" in outcome.reason
 
 
 def test_zerowy_ttl_znaczy_bez_terminu() -> None:
@@ -276,7 +276,7 @@ def test_awaria_kanalu_potwierdzen_jest_odmowa() -> None:
         raise RuntimeError("modal się nie otworzył")
 
     outcome = run(CallbackBroker(wybuchowy).ask(request_for(RiskLevel.HIGH)))
-    assert not outcome.approved and "zawiódł" in outcome.reason
+    assert not outcome.approved and "failed" in outcome.reason
 
 
 def test_kanal_asynchroniczny_z_limitem_czasu() -> None:

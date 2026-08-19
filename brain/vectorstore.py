@@ -163,7 +163,7 @@ class NumpyVectorIndex:
         block = numpy.asarray(vectors, dtype=numpy.float32).reshape(len(ids), -1)
         if block.shape[1] != self._dimension:
             raise ValueError(
-                f"wektor ma {block.shape[1]} wymiarów, indeks oczekuje {self._dimension}"
+                t("vec.dim_mismatch", actual=block.shape[1], expected=self._dimension)
             )
 
         # Powtórzone id nadpisuje poprzedni wektor (aktualizacja treści źródła).
@@ -262,7 +262,7 @@ class FaissVectorIndex:
         block = numpy.asarray(vectors, dtype=numpy.float32).reshape(len(ids), -1)
         if block.shape[1] != self._dimension:
             raise ValueError(
-                f"wektor ma {block.shape[1]} wymiarów, indeks oczekuje {self._dimension}"
+                t("vec.dim_mismatch", actual=block.shape[1], expected=self._dimension)
             )
         identifiers = numpy.asarray([int(item) for item in ids], dtype=numpy.int64)
         # IndexIDMap2 nie nadpisuje istniejącego id — najpierw usuwamy stare.

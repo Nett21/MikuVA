@@ -32,6 +32,7 @@ from plugins.reminders.storage import Reminder, ReminderError, ReminderStore
 from security.confirm import ConfirmationRequest
 from security.risk import RiskLevel
 from tools.base import BaseTool, Tool, ToolArgs, ToolContext, ToolError, ToolResult, ToolSpec
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +64,12 @@ def resolve_due(*, now: datetime, in_minutes: int | None = None, at: str = "") -
 
     if in_minutes is not None:
         if in_minutes <= 0:
-            raise ToolError("in_minutes musi być większe od zera")
+            raise ToolError(t("rem.minutes_positive"))
         return (now + timedelta(minutes=in_minutes)).astimezone(UTC)
 
     text = at.strip()
     if not text:
-        raise ToolError("podaj in_minutes (za ile minut) albo at (o której)")
+        raise ToolError(t("rem.need_time"))
 
     local_now = _local_now(now)
 
@@ -97,7 +98,7 @@ def resolve_due(*, now: datetime, in_minutes: int | None = None, at: str = "") -
         parsed = datetime.fromisoformat(text)
     except ValueError as exc:
         raise ToolError(
-            f"nie rozumiem terminu {text!r} — użyj HH:MM, YYYY-MM-DD HH:MM albo pełnej daty ISO"
+            t("rem.bad_time", value=repr(text))
         ) from exc
     if parsed.tzinfo is None:
         parsed = parsed.replace(tzinfo=local_now.tzinfo)
@@ -144,7 +145,7 @@ class _ReminderTool[ArgsT: ToolArgs](BaseTool[ArgsT]):
 
     def store(self) -> ReminderStore:
         if self._store is None:  # pragma: no cover - bramka ENABLED sprawdza to wcześniej
-            raise ToolError("pamięć trwała jest wyłączona — nie mam gdzie zapisać przypomnienia")
+            raise ToolError(t("rem.no_storage"))
         return self._store
 
 
@@ -170,13 +171,12 @@ class ReminderAddTool(_ReminderTool[ReminderAddArgs]):
 
         horizon = ctx.now() + timedelta(days=MAX_HORIZON_DAYS)
         if due > horizon:
-            raise ToolError(f"termin dalej niż {MAX_HORIZON_DAYS} dni — to na pewno pomyłka")
+            raise ToolError(t("rem.too_far", days=MAX_HORIZON_DAYS))
 
         try:
             if store.count_active() >= self._max_active:
                 raise ToolError(
-                    f"jest już {self._max_active} aktywnych przypomnień — "
-                    "odwołaj któreś (reminders.cancel), zanim dołożysz kolejne"
+                    t("rem.too_many", limit=self._max_active)
                 )
             saved = store.add(args.text, due, action=args.action, source="model", now=ctx.now())
         except ReminderError as exc:
@@ -191,7 +191,7 @@ class ReminderAddTool(_ReminderTool[ReminderAddArgs]):
                 "due_local": local.isoformat(),
                 "action": saved.action,
             },
-            display=f"przypomnę: {saved.text} — {local.strftime('%Y-%m-%d %H:%M')}",
+            display=t("rem.scheduled", text=saved.text, when=local.strftime("%Y-%m-%d %H:%M")),
         )
 
     def confirmation(
@@ -223,7 +223,7 @@ class ReminderListTool(_ReminderTool[ReminderListArgs]):
         now = ctx.now()
 
         if not items:
-            return ToolResult.success({"reminders": []}, display="brak zaplanowanych przypomnień")
+            return ToolResult.success({"reminders": []}, display=t("rem.none"))
 
         return ToolResult.success(
             {
@@ -249,12 +249,11 @@ class ReminderCancelTool(_ReminderTool[ReminderCancelArgs]):
         cancelled: Reminder | None = store.cancel(args.reminder_id)
         if cancelled is None:
             raise ToolError(
-                f"nie ma aktywnego przypomnienia o numerze {args.reminder_id} "
-                "(sprawdź listę: reminders.list)"
+                t("rem.not_found", id=args.reminder_id)
             )
         return ToolResult.success(
             {"id": cancelled.id, "text": cancelled.text},
-            display=f"odwołane: {cancelled.describe()}",
+            display=t("rem.cancelled", description=cancelled.describe()),
         )
 
 
@@ -286,7 +285,7 @@ def build_reminder_tools(store: ReminderStore | None, *, max_active: int = 100) 
                 ),
                 args_model=ReminderListArgs,
                 risk=RiskLevel.SAFE,
-                summary="Pokaż zaplanowane przypomnienia.",
+                summary=t("spec.rem_list"),
             ),
             store,
         ),
@@ -296,7 +295,7 @@ def build_reminder_tools(store: ReminderStore | None, *, max_active: int = 100) 
                 description="Cancel a scheduled reminder by its id (see reminders.list).",
                 args_model=ReminderCancelArgs,
                 risk=RiskLevel.MEDIUM,
-                summary="Odwołaj zaplanowane przypomnienie.",
+                summary=t("spec.rem_cancel"),
             ),
             store,
         ),
