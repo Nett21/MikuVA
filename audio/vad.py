@@ -30,6 +30,7 @@ import numpy as np
 from audio.microphone import AudioFrame
 from audio.resample import rms_dbfs
 from config import Settings, get_settings
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -140,13 +141,19 @@ class WebRTCVAD:
     def __init__(self, *, aggressiveness: int = 2, sample_rate: int = 16_000, frame_ms: int = 20) -> None:
         if sample_rate not in WEBRTC_SUPPORTED_RATES:
             raise VADError(
-                f"webrtcvad obsługuje wyłącznie {sorted(WEBRTC_SUPPORTED_RATES)} Hz, "
-                f"a ustawiono {sample_rate} Hz"
+                t(
+                    "vad.bad_sample_rate",
+                    supported=sorted(WEBRTC_SUPPORTED_RATES),
+                    actual=sample_rate,
+                )
             )
         if frame_ms not in WEBRTC_SUPPORTED_FRAME_MS:
             raise VADError(
-                f"webrtcvad obsługuje ramki {sorted(WEBRTC_SUPPORTED_FRAME_MS)} ms, "
-                f"a ustawiono {frame_ms} ms"
+                t(
+                    "vad.bad_frame_ms",
+                    supported=sorted(WEBRTC_SUPPORTED_FRAME_MS),
+                    actual=frame_ms,
+                )
             )
         try:
             import webrtcvad  # noqa: PLC0415 - import celowo leniwy

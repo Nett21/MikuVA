@@ -37,6 +37,7 @@ import numpy as np
 
 from audio.resample import resample_int16, to_mono
 from config import Settings, get_settings, pip_install_hint
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -102,13 +103,13 @@ def _load_sounddevice() -> ModuleType:
         import sounddevice  # noqa: PLC0415 - import celowo leniwy
     except ImportError as exc:
         raise MicrophoneUnavailableError(
-            "Pakiet 'sounddevice' nie jest zainstalowany — wejście głosowe wyłączone.",
+            t("mic.no_package"),
             hint=pip_install_hint(),
         ) from exc
     except OSError as exc:
         raise MicrophoneUnavailableError(
-            f"Nie udało się załadować biblioteki PortAudio ({exc}).",
-            hint="zainstaluj PortAudio w systemie albo użyj trybu tekstowego",
+            t("mic.portaudio_failed", error=exc),
+            hint=t("mic.portaudio_hint"),
         ) from exc
     return sounddevice
 
@@ -169,8 +170,8 @@ def list_input_devices(settings: Settings | None = None) -> list[AudioDevice]:
             host_apis = sounddevice.query_hostapis()
     except Exception as exc:  # PortAudioError i wszystko, co rzuci sterownik
         raise MicrophoneUnavailableError(
-            f"Nie udało się odczytać listy urządzeń audio ({exc}).",
-            hint="sprawdź, czy serwer dźwięku działa (PipeWire/PulseAudio/WASAPI)",
+            t("mic.devices_failed", error=exc),
+            hint=t("mic.sound_server_hint"),
         ) from exc
 
     devices: list[AudioDevice] = []
@@ -287,8 +288,8 @@ class Microphone:
         devices = list_input_devices(self._settings)
         if not devices:
             raise MicrophoneUnavailableError(
-                "System nie zgłasza żadnego urządzenia wejściowego (mikrofonu).",
-                hint="podłącz mikrofon albo pracuj w trybie tekstowym",
+                t("mic.none_reported"),
+                hint=t("mic.none_reported_hint"),
             )
 
         if not self._device_name:
@@ -298,8 +299,8 @@ class Microphone:
         if match is None:
             available = ", ".join(device.name for device in devices[:8])
             raise MicrophoneUnavailableError(
-                f"Nie znaleziono mikrofonu pasującego do '{self._device_name}'.",
-                hint=f"dostępne urządzenia: {available}",
+                t("mic.not_matched", name=self._device_name),
+                hint=t("mic.available_devices", devices=available),
             )
         return match
 
@@ -376,9 +377,11 @@ class Microphone:
                 return
 
             raise MicrophoneUnavailableError(
-                "Nie udało się otworzyć strumienia z mikrofonu"
-                + (f" ({last_error})" if last_error else "."),
-                hint="sprawdź, czy inny program nie zajmuje mikrofonu i czy system ma uprawnienia do nagrywania",
+                t(
+                    "mic.stream_failed",
+                    error=f" ({last_error})" if last_error else ".",
+                ),
+                hint=t("mic.stream_failed_hint"),
             )
 
     def stop(self) -> None:
@@ -472,8 +475,8 @@ class Microphone:
         """Pobierz kolejną ramkę albo ``None``, gdy w zadanym czasie nic nie przyszło."""
         if self._stream is None:
             raise MicrophoneError(
-                "Mikrofon nie jest uruchomiony.",
-                hint="wywołaj start() albo użyj mikrofonu jako menedżera kontekstu",
+                t("mic.not_started"),
+                hint=t("mic.not_started_hint"),
             )
         try:
             return self._queue.get(timeout=timeout)

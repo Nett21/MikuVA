@@ -45,6 +45,7 @@ from config import (
     pip_install_hint,
     resolve_speech_languages,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -129,13 +130,13 @@ def _load_faster_whisper() -> ModuleType:
         import faster_whisper  # noqa: PLC0415 - import celowo leniwy (ciężka biblioteka)
     except ImportError as exc:
         raise TranscriptionError(
-            "Pakiet 'faster-whisper' nie jest zainstalowany — transkrypcja niedostępna.",
+            t("stt.no_package"),
             hint=pip_install_hint(),
         ) from exc
     except OSError as exc:
         raise TranscriptionError(
-            f"Nie udało się załadować bibliotek CTranslate2 ({exc}).",
-            hint="sprawdź instalację faster-whisper albo wymuś WHISPER_DEVICE=cpu",
+            t("stt.ctranslate_failed", error=exc),
+            hint=t("stt.ctranslate_hint"),
         ) from exc
     return faster_whisper
 
@@ -303,8 +304,8 @@ class WhisperTranscriber:
             WHISPER_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
             raise TranscriptionError(
-                f"Brak prawa zapisu do katalogu modeli {WHISPER_CACHE_DIR} ({exc}).",
-                hint="wskaż inny katalog zmienną MIKU_MODELS_DIR",
+                t("stt.models_dir_readonly", path=WHISPER_CACHE_DIR, error=exc),
+                hint=t("stt.models_dir_hint"),
             ) from exc
 
         attempts: list[tuple[str, str]] = [(self._device, self._compute_type)]
@@ -351,20 +352,13 @@ class WhisperTranscriber:
             )
             return
 
-        hint = "pobierz model przy włączonym internecie albo ustaw WHISPER_MODEL na katalog lokalny"
+        hint = t("stt.load_hint_download")
         if not self._settings.whisper_allow_download:
-            hint = (
-                "WHISPER_ALLOW_DOWNLOAD=false, a modelu nie ma w models/whisper — "
-                "pobierz go zawczasu: python scripts/prepare_offline.py --whisper"
-            )
+            hint = t("stt.load_hint_no_download")
         elif self.offline:
-            hint = (
-                "tryb offline zabrania pobierania, a modelu nie ma w models/whisper — "
-                "uruchom na maszynie z internetem: python scripts/prepare_offline.py --whisper "
-                "(albo tymczasowo OFFLINE_MODE=off)"
-            )
+            hint = t("stt.load_hint_offline")
         raise TranscriptionError(
-            f"Nie udało się załadować modelu Whisper '{source}' ({last_error}).",
+            t("stt.load_failed", model=source, error=last_error),
             hint=hint,
         )
 
@@ -560,14 +554,14 @@ class WhisperTranscriber:
                 except Exception as retry_error:
                     logger.exception("Transkrypcja nie powiodła się także na CPU")
                     raise TranscriptionError(
-                        f"Nie udało się przetranskrybować nagrania ({retry_error}).",
-                        hint="szczegóły w logs/errors.log",
+                        t("stt.transcribe_failed", error=retry_error),
+                        hint=t("stt.details_in_log"),
                     ) from retry_error
             else:
                 logger.exception("Transkrypcja nie powiodła się")
                 raise TranscriptionError(
-                    f"Nie udało się przetranskrybować nagrania ({exc}).",
-                    hint="szczegóły w logs/errors.log",
+                    t("stt.transcribe_failed", error=exc),
+                    hint=t("stt.details_in_log"),
                 ) from exc
 
         processing = time.monotonic() - started

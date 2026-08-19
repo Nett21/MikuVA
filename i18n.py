@@ -939,6 +939,70 @@ _EN: Final[dict[str, str]] = {
     "cli.headless.deny_reason": "background service — no channel to confirm the action",
     "cli.headless.microphone_back": "Voice input is back.",
     "cli.headless.stopped": "Background service stopped.",
+    # --- potok wejścia głosowego (audio/pipeline.py) ---------------------- #
+    "pipe.started": "voice input ready",
+    "pipe.stopped": "voice input stopped",
+    "pipe.listening": "listening...",
+    "pipe.waiting_for_wake": "waiting for \u201c{phrase}\u201d",
+    "pipe.wake_detected": "I hear \u201c{phrase}\u201d",
+    "pipe.wake_score": "similarity {score}",
+    "pipe.wake_heard": "similarity {score}, heard: {heard}",
+    "pipe.wake_failed": "The wake word detector did not start ({error}) — listening without the gate.",
+    "pipe.speech_start": "speech detected",
+    "pipe.speech_end": "end of speech ({seconds} s)",
+    "pipe.speech_end_truncated": "end of speech ({seconds} s) — cut off by the limit",
+    "pipe.speech_end_truncated_hint": (
+        "if this keeps happening on short sentences, run: python main.py --audio-check"
+    ),
+    "pipe.transcribing": "recognising speech...",
+    "pipe.timeout": "silence for {seconds} s",
+    "pipe.empty": "nothing recognised — still listening",
+    "pipe.empty_giving_up": "nothing recognised {count} times — stopping the listen",
+    "pipe.ignored": "speech without the phrase \u201c{phrase}\u201d — skipping",
+    "pipe.ignored_detail": "{seconds} s",
+    # --- mikrofon (audio/microphone.py) ----------------------------------- #
+    "mic.no_package": "The 'sounddevice' package is not installed — voice input is off.",
+    "mic.portaudio_failed": "Could not load the PortAudio library ({error}).",
+    "mic.portaudio_hint": "install PortAudio in the system, or work in text mode",
+    "mic.devices_failed": "Could not read the list of audio devices ({error}).",
+    "mic.sound_server_hint": "check that the sound server is running (PipeWire/PulseAudio/WASAPI)",
+    "mic.none_reported": "The system reports no input device (microphone).",
+    "mic.none_reported_hint": "plug in a microphone, or work in text mode",
+    "mic.not_matched": "No microphone matching '{name}' was found.",
+    "mic.available_devices": "devices available: {devices}",
+    "mic.stream_failed": "Could not open the microphone stream{error}",
+    "mic.stream_failed_hint": (
+        "check that no other program is holding the microphone and that the system "
+        "grants permission to record"
+    ),
+    "mic.not_started": "The microphone is not running.",
+    "mic.not_started_hint": "call start(), or use the microphone as a context manager",
+    # --- Whisper (audio/whisper.py) i VAD (audio/vad.py) ------------------ #
+    "stt.no_package": "The 'faster-whisper' package is not installed — transcription is unavailable.",
+    "stt.ctranslate_failed": "Could not load the CTranslate2 libraries ({error}).",
+    "stt.ctranslate_hint": "check the faster-whisper installation, or force WHISPER_DEVICE=cpu",
+    "stt.models_dir_readonly": "No write permission for the models directory {path} ({error}).",
+    "stt.models_dir_hint": "point somewhere else with the MIKU_MODELS_DIR variable",
+    "stt.load_failed": "Could not load the Whisper model '{model}' ({error}).",
+    "stt.load_hint_download": (
+        "download the model while online, or set WHISPER_MODEL to a local directory"
+    ),
+    "stt.load_hint_no_download": (
+        "WHISPER_ALLOW_DOWNLOAD=false and the model is not in models/whisper — "
+        "fetch it in advance: python scripts/prepare_offline.py --whisper"
+    ),
+    "stt.load_hint_offline": (
+        "offline mode forbids downloading and the model is not in models/whisper — "
+        "run this on a machine with internet: python scripts/prepare_offline.py --whisper "
+        "(or temporarily set OFFLINE_MODE=off)"
+    ),
+    "stt.transcribe_failed": "Could not transcribe the recording ({error}).",
+    "stt.details_in_log": "details in logs/errors.log",
+    "vad.bad_sample_rate": "webrtcvad supports only {supported} Hz, but {actual} Hz was set",
+    "vad.bad_frame_ms": "webrtcvad supports frames of {supported} ms, but {actual} ms was set",
+    "pipe.default_device": "default device",
+    "pipe.describe_wake": "wake \u201c{phrase}\u201d ({engine})",
+    "pipe.wake_disabled": "off",
 }
 
 
@@ -1804,6 +1868,70 @@ _PL: Final[dict[str, str]] = {
     "cli.headless.deny_reason": "usługa w tle — brak kanału do potwierdzenia akcji",
     "cli.headless.microphone_back": "Wejście głosowe wróciło.",
     "cli.headless.stopped": "Usługa w tle zatrzymana.",
+    # --- potok wejścia głosowego (audio/pipeline.py) ---------------------- #
+    "pipe.started": "wejście głosowe gotowe",
+    "pipe.stopped": "wejście głosowe zatrzymane",
+    "pipe.listening": "słucham...",
+    "pipe.waiting_for_wake": "czekam na \u201e{phrase}\u201d",
+    "pipe.wake_detected": "słyszę \u201e{phrase}\u201d",
+    "pipe.wake_score": "podobieństwo {score}",
+    "pipe.wake_heard": "podobieństwo {score}, usłyszano: {heard}",
+    "pipe.wake_failed": "Detektor frazy nie wystartował ({error}) — słucham bez bramki.",
+    "pipe.speech_start": "wykryto mowę",
+    "pipe.speech_end": "koniec wypowiedzi ({seconds} s)",
+    "pipe.speech_end_truncated": "koniec wypowiedzi ({seconds} s) — przycięta limitem",
+    "pipe.speech_end_truncated_hint": (
+        "jeśli powtarza się przy krótkich zdaniach, uruchom: python main.py --audio-check"
+    ),
+    "pipe.transcribing": "rozpoznaję mowę...",
+    "pipe.timeout": "cisza przez {seconds} s",
+    "pipe.empty": "nie rozpoznano treści — słucham dalej",
+    "pipe.empty_giving_up": "nie rozpoznano treści {count} razy — przerywam nasłuch",
+    "pipe.ignored": "mowa bez frazy \u201e{phrase}\u201d — pomijam",
+    "pipe.ignored_detail": "{seconds} s",
+    # --- mikrofon (audio/microphone.py) ----------------------------------- #
+    "mic.no_package": "Pakiet 'sounddevice' nie jest zainstalowany — wejście głosowe wyłączone.",
+    "mic.portaudio_failed": "Nie udało się załadować biblioteki PortAudio ({error}).",
+    "mic.portaudio_hint": "zainstaluj PortAudio w systemie albo użyj trybu tekstowego",
+    "mic.devices_failed": "Nie udało się odczytać listy urządzeń audio ({error}).",
+    "mic.sound_server_hint": "sprawdź, czy serwer dźwięku działa (PipeWire/PulseAudio/WASAPI)",
+    "mic.none_reported": "System nie zgłasza żadnego urządzenia wejściowego (mikrofonu).",
+    "mic.none_reported_hint": "podłącz mikrofon albo pracuj w trybie tekstowym",
+    "mic.not_matched": "Nie znaleziono mikrofonu pasującego do '{name}'.",
+    "mic.available_devices": "dostępne urządzenia: {devices}",
+    "mic.stream_failed": "Nie udało się otworzyć strumienia z mikrofonu{error}",
+    "mic.stream_failed_hint": (
+        "sprawdź, czy inny program nie zajmuje mikrofonu i czy system ma uprawnienia "
+        "do nagrywania"
+    ),
+    "mic.not_started": "Mikrofon nie jest uruchomiony.",
+    "mic.not_started_hint": "wywołaj start() albo użyj mikrofonu jako menedżera kontekstu",
+    # --- Whisper (audio/whisper.py) i VAD (audio/vad.py) ------------------ #
+    "stt.no_package": "Pakiet 'faster-whisper' nie jest zainstalowany — transkrypcja niedostępna.",
+    "stt.ctranslate_failed": "Nie udało się załadować bibliotek CTranslate2 ({error}).",
+    "stt.ctranslate_hint": "sprawdź instalację faster-whisper albo wymuś WHISPER_DEVICE=cpu",
+    "stt.models_dir_readonly": "Brak prawa zapisu do katalogu modeli {path} ({error}).",
+    "stt.models_dir_hint": "wskaż inny katalog zmienną MIKU_MODELS_DIR",
+    "stt.load_failed": "Nie udało się załadować modelu Whisper '{model}' ({error}).",
+    "stt.load_hint_download": (
+        "pobierz model przy włączonym internecie albo ustaw WHISPER_MODEL na katalog lokalny"
+    ),
+    "stt.load_hint_no_download": (
+        "WHISPER_ALLOW_DOWNLOAD=false, a modelu nie ma w models/whisper — "
+        "pobierz go zawczasu: python scripts/prepare_offline.py --whisper"
+    ),
+    "stt.load_hint_offline": (
+        "tryb offline zabrania pobierania, a modelu nie ma w models/whisper — "
+        "uruchom na maszynie z internetem: python scripts/prepare_offline.py --whisper "
+        "(albo tymczasowo OFFLINE_MODE=off)"
+    ),
+    "stt.transcribe_failed": "Nie udało się przetranskrybować nagrania ({error}).",
+    "stt.details_in_log": "szczegóły w logs/errors.log",
+    "vad.bad_sample_rate": "webrtcvad obsługuje wyłącznie {supported} Hz, a ustawiono {actual} Hz",
+    "vad.bad_frame_ms": "webrtcvad obsługuje ramki {supported} ms, a ustawiono {actual} ms",
+    "pipe.default_device": "urządzenie domyślne",
+    "pipe.describe_wake": "wake \u201e{phrase}\u201d ({engine})",
+    "pipe.wake_disabled": "wyłączone",
 }
 
 _CATALOGS: Final[dict[str, dict[str, str]]] = {"en": _EN, "pl": _PL}

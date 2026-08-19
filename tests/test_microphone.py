@@ -10,6 +10,7 @@ from conftest import FakeSoundDevice, make_tone
 
 from audio.microphone import (
     Microphone,
+    MicrophoneError,
     MicrophoneUnavailableError,
     find_input_device,
     is_microphone_available,
@@ -150,5 +151,9 @@ def test_czytanie_przed_startem_daje_czytelny_blad(
     fake_sounddevice: FakeSoundDevice, settings: Settings
 ) -> None:
     microphone = Microphone(settings)
-    with pytest.raises(Exception, match="nie jest uruchomiony"):
+    # Treść komunikatu idzie przez i18n i zależy od UI_LANGUAGE, więc test
+    # sprawdza RODZAJ błędu i to, że niesie podpowiedź — a nie brzmienie zdania.
+    with pytest.raises(MicrophoneError) as blad:
         microphone.read(timeout=0.01)
+    assert blad.value.message
+    assert "start()" in blad.value.hint

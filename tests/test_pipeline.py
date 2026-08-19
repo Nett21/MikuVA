@@ -213,7 +213,11 @@ def test_halasliwe_otoczenie_nie_blokuje_nasluchu_na_zawsze(settings: Settings) 
 
     assert pipeline.listen_once() is None
     assert len(transcriber.calls) == MAX_EMPTY_TRANSCRIPTS
-    assert any("przerywam nasłuch" in message.text for message in events)
+    # Sprawdzamy RODZAJ zdarzenia, nie jego treść: napis idzie przez i18n
+    # i zależy od UI_LANGUAGE, a warunek, o który tu chodzi — nie.
+    assert any(message.event is PipelineEvent.EMPTY for message in events)
+    ostatnie = [m for m in events if m.event is PipelineEvent.EMPTY][-1]
+    assert str(MAX_EMPTY_TRANSCRIPTS) in ostatnie.text
 
 
 def test_blad_mikrofonu_daje_wyjatek_potoku(settings: Settings) -> None:

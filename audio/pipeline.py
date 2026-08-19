@@ -39,6 +39,7 @@ from config import (
     is_offline,
     resolve_speech_language,
 )
+from i18n import t
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,7 @@ class SpeechToTextPipeline:
 
     @property
     def wake_name(self) -> str:
-        return self._wake.name if self._wake is not None else "wyłączone"
+        return self._wake.name if self._wake is not None else t("pipe.wake_disabled")
 
     @property
     def is_awake(self) -> bool:
@@ -186,10 +187,12 @@ class SpeechToTextPipeline:
 
     def describe(self) -> str:
         device = self._microphone.device
-        device_name = device.name if device else "urządzenie domyślne"
+        device_name = device.name if device else t("pipe.default_device")
         stages = [device_name, f"VAD {self.vad_name}"]
         if self._wake is not None:
-            stages.append(f"wake „{self.wake_phrase}” ({self.wake_name})")
+            stages.append(
+                t("pipe.describe_wake", phrase=self.wake_phrase, engine=self.wake_name)
+            )
         stages.append(f"Whisper {self._transcriber.describe()}")
         return " → ".join(stages)
 
@@ -288,7 +291,7 @@ class SpeechToTextPipeline:
         self._mark_activity()
         self._emit(
             PipelineEvent.STARTED,
-            "wejście głosowe gotowe",
+            t("pipe.started"),
             self.describe(),
         )
 
@@ -309,7 +312,7 @@ class SpeechToTextPipeline:
             logger.warning("Nie udało się załadować modelu frazy: %s", exc.message)
             self._emit(
                 PipelineEvent.ERROR,
-                f"Detektor frazy nie wystartował ({exc.message}) — słucham bez bramki.",
+                t("pipe.wake_failed", error=exc.message),
                 exc.hint,
             )
             self._wake = None
@@ -375,7 +378,7 @@ class SpeechToTextPipeline:
         self._microphone.stop()
         self.sleep()
         self._started = False
-        self._emit(PipelineEvent.STOPPED, "wejście głosowe zatrzymane")
+        self._emit(PipelineEvent.STOPPED, t("pipe.stopped"))
 
     def close(self) -> None:
         """Zatrzymaj potok i zwolnij modele."""
@@ -411,19 +414,24 @@ class SpeechToTextPipeline:
         if self.requires_wake():
             self._emit(
                 PipelineEvent.WAITING_FOR_WAKE,
-                f"czekam na „{self.wake_phrase}”",
+                t("pipe.waiting_for_wake", phrase=self.wake_phrase),
                 self.wake_name,
             )
         else:
-            self._emit(PipelineEvent.LISTENING, "słucham...")
+            self._emit(PipelineEvent.LISTENING, t("pipe.listening"))
 
     def _register_wake(self, match: WakeMatch) -> None:
         self._armed_turn = True
         self._awake_until = time.monotonic() + self._settings.wake_window_s
-        detail = f"podobieństwo {match.score:.2f}"
-        if match.heard:
-            detail += f", usłyszano: {match.heard!r}"
-        self._emit(PipelineEvent.WAKE_DETECTED, f"słyszę „{match.phrase}”", detail)
+        score = f"{match.score:.2f}"
+        detail = (
+            t("pipe.wake_heard", score=score, heard=repr(match.heard))
+            if match.heard
+            else t("pipe.wake_score", score=score)
+        )
+        self._emit(
+            PipelineEvent.WAKE_DETECTED, t("pipe.wake_detected", phrase=match.phrase), detail
+        )
 
     def _check_wake_utterance(self, utterance: Utterance) -> WakeMatch | None:
         """Sprawdź wypowiedź detektorem frazy (silniki segmentowe)."""
@@ -469,7 +477,7 @@ class SpeechToTextPipeline:
                     and not self._segmenter.is_recording
                     and time.monotonic() > deadline
                 ):
-                    self._emit(PipelineEvent.TIMEOUT, f"cisza przez {limit:.0f} s")
+                    self._emit(PipelineEvent.TIMEOUT, t("pipe.timeout", seconds=f"{limit:.0f}"))
                     return None
                 continue
 
@@ -486,7 +494,7 @@ class SpeechToTextPipeline:
 
             if not was_recording and self._segmenter.is_recording:
                 self._mark_activity()
-                self._emit(PipelineEvent.SPEECH_START, "wykryto mowę")
+                self._emit(PipelineEvent.SPEECH_START, t("pipe.speech_start"))
 
             if utterance is None:
                 if not self._segmenter.is_recording:
@@ -496,7 +504,7 @@ class SpeechToTextPipeline:
                     and not self._segmenter.is_recording
                     and time.monotonic() > deadline
                 ):
-                    self._emit(PipelineEvent.TIMEOUT, f"cisza przez {limit:.0f} s")
+                    self._emit(PipelineEvent.TIMEOUT, t("pipe.timeout", seconds=f"{limit:.0f}"))
                     return None
                 continue
 
@@ -505,13 +513,13 @@ class SpeechToTextPipeline:
                 # nie widzi ciszy — czyli próg jest za niski dla tego mikrofonu.
                 self._emit(
                     PipelineEvent.SPEECH_END,
-                    f"koniec wypowiedzi ({utterance.duration_s:.1f} s) — przycięta limitem",
-                    "jeśli powtarza się przy krótkich zdaniach, uruchom: python main.py --audio-check",
+                    t("pipe.speech_end_truncated", seconds=f"{utterance.duration_s:.1f}"),
+                    t("pipe.speech_end_truncated_hint"),
                 )
             else:
                 self._emit(
                     PipelineEvent.SPEECH_END,
-                    f"koniec wypowiedzi ({utterance.duration_s:.1f} s)",
+                    t("pipe.speech_end", seconds=f"{utterance.duration_s:.1f}"),
                 )
             if self.requires_wake():
                 match = self._check_wake_utterance(utterance)
@@ -521,20 +529,20 @@ class SpeechToTextPipeline:
                     # inaczej gadające radio trzymałoby nasłuch w nieskończoność.
                     self._emit(
                         PipelineEvent.IGNORED,
-                        f"mowa bez frazy „{self.wake_phrase}” — pomijam",
-                        f"{utterance.duration_s:.1f} s",
+                        t("pipe.ignored", phrase=self.wake_phrase),
+                        t("pipe.ignored_detail", seconds=f"{utterance.duration_s:.1f}"),
                     )
                     continue
 
                 self._register_wake(match)
                 if not match.has_command:
                     # Samo zawołanie — teraz czekamy na właściwe polecenie.
-                    self._emit(PipelineEvent.LISTENING, "słucham...")
+                    self._emit(PipelineEvent.LISTENING, t("pipe.listening"))
                     if deadline is not None:
                         deadline = time.monotonic() + limit
                     continue
 
-            self._emit(PipelineEvent.TRANSCRIBING, "rozpoznaję mowę...")
+            self._emit(PipelineEvent.TRANSCRIBING, t("pipe.transcribing"))
             self._mark_activity()
 
             try:
@@ -548,10 +556,10 @@ class SpeechToTextPipeline:
                 if empty_results >= MAX_EMPTY_TRANSCRIPTS:
                     self._emit(
                         PipelineEvent.EMPTY,
-                        f"nie rozpoznano treści {empty_results} razy — przerywam nasłuch",
+                        t("pipe.empty_giving_up", count=empty_results),
                     )
                     return None
-                self._emit(PipelineEvent.EMPTY, "nie rozpoznano treści — słucham dalej")
+                self._emit(PipelineEvent.EMPTY, t("pipe.empty"))
                 if deadline is not None:
                     deadline = time.monotonic() + limit
                 continue
@@ -560,7 +568,7 @@ class SpeechToTextPipeline:
             if transcript.is_empty:
                 # Cała wypowiedź była samym zawołaniem („hej miku") — polecenie
                 # dopiero nadejdzie.
-                self._emit(PipelineEvent.LISTENING, "słucham...")
+                self._emit(PipelineEvent.LISTENING, t("pipe.listening"))
                 if deadline is not None:
                     deadline = time.monotonic() + limit
                 continue
