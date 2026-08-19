@@ -1,0 +1,21 @@
+{
+  "assistant_name": "Miku",
+  "wake_word": "",
+  "wake_word_model": "",
+  "speech_language": "auto",
+  "ui_accent_color": "#39C5BB",
+  "personality_traits": "",
+  "voice_engine": "piper",
+  "piper_model": "",
+  "piper_voices": {},
+  "piper_speaker": 0,
+  "voice_speed": 1.0,
+  "voice_volume": 0.9,
+  "rvc": {
+    "enabled": false,
+    "model_path": "",
+    "index_path": "",
+    "pitch_shift": 0,
+    "index_rate": 0.75
+  }
+}

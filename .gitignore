@@ -1,0 +1,79 @@
+# --- Konfiguracja lokalna (maszynowa) ---
+# .env i user_settings.json opisują KONKRETNY komputer: klucze API, ścieżki,
+# wybrane urządzenia audio. Wzorce bez wartości leżą obok jako *.example.
+.env
+.env.local
+.env.*.local
+config/user_settings.json
+config/dependency_status.json
+config/offline_bundle.json
+config/*.tmp
+
+# Osobiste ustawienia narzędzi deweloperskich: zawierają ścieżki bezwzględne
+# z maszyny autora. Wersja współdzielona (.claude/settings.json) może być
+# wersjonowana — ta z ".local" nigdy.
+.claude/settings.local.json
+
+# --- Dane i modele ---
+# Modele Whispera, głosy Pipera, embeddingi i modele RVC. Setki MB do kilku GB,
+# pobierane skryptem (scripts/prepare_offline.py), nigdy trzymane w repozytorium.
+models/
+
+# Te same pliki, gdyby ktoś położył je POZA models/ — zabezpieczenie przed
+# przypadkowym `git add` modelu głosu, którego i tak nie wolno rozprowadzać
+# (patrz sekcja o prawach w README).
+*.onnx
+*.pth
+*.gguf
+*.safetensors
+*.ckpt
+
+# --- Magazyn kół pip do instalacji bez internetu (duży, budowany lokalnie) ---
+vendor/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3.v*.bak
+# Awaryjna lokalizacja bazy pamięci, gdy system nie poda katalogu danych
+# (kontener bez HOME, usługa) — patrz config.app_data_directory().
+data/
+
+# --- Logi ---
+logs/
+*.log
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# --- Środowiska wirtualne ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Pliki tymczasowe ---
+*.tmp
+*.bak
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# --- Edytory i systemy operacyjne ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini

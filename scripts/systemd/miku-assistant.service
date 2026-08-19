@@ -1,0 +1,107 @@
+# Asystent głosowy jako usługa UŻYTKOWNIKA (systemd --user).
+#
+# To jest PRZYKŁAD do ręcznej edycji. Wersję z podstawionymi ścieżkami tej
+# maszyny wypisze:
+#
+#     python scripts/install_autostart.py --print
+#
+# a zainstaluje (bez praw administratora):
+#
+#     python scripts/install_autostart.py
+#
+# --------------------------------------------------------------------------
+# Dlaczego --user, a nie usługa systemowa:
+#
+#  * dźwięk. PipeWire i PulseAudio działają w sesji użytkownika. Usługa
+#    systemowa nie ma do nich dostępu — nie widzi ani mikrofonu, ani głośnika,
+#    a to jest jedyne wejście i wyjście tego programu,
+#  * pliki. Baza pamięci, ustawienia i modele leżą w katalogu użytkownika;
+#    usługa systemowa pisałaby do nich jako root i zepsuła uprawnienia,
+#  * uprawnienia. Instalacja usługi systemowej wymaga sudo. Tutaj nie jest
+#    potrzebne nic ponad prawo zapisu do własnego ~/.config.
+#
+# Instalacja ręczna:
+#
+#     mkdir -p ~/.config/systemd/user
+#     cp scripts/systemd/miku-assistant.service ~/.config/systemd/user/
+#     $EDITOR ~/.config/systemd/user/miku-assistant.service   # popraw ŚCIEŻKI
+#     systemctl --user daemon-reload
+#     systemctl --user enable --now miku-assistant.service
+#     journalctl --user -u miku-assistant.service -f
+#
+# Start bez zalogowanej sesji graficznej (opcjonalnie, wymaga sudo JEDEN raz):
+#
+#     sudo loginctl enable-linger "$USER"
+#
+# Bez `linger` usługa startuje przy logowaniu i kończy się przy wylogowaniu —
+# dla asystenta biurkowego to jest zachowanie właściwe.
+# --------------------------------------------------------------------------
+
+[Unit]
+Description=Lokalny asystent głosowy (tryb bezobsługowy)
+Documentation=file:%h/miku/README.md
+
+# Kolejność, a nie zależność twarda: brak dźwięku ma opóźnić start, a nie go
+# zablokować. `Wants=` zamiast `Requires=`, bo nazwa jednostki dźwięku zależy od
+# dystrybucji (pipewire.service, pulseaudio.service) i nie ma jej na każdej.
+Wants=pipewire.service pulseaudio.service
+After=pipewire.service pulseaudio.service default.target
+
+[Service]
+Type=simple
+
+# ŚCIEŻKI DO POPRAWIENIA — dwie linie niżej. Muszą być BEZWZGLĘDNE: systemd nie
+# rozwija ~ ani zmiennych powłoki w ExecStart. %h to katalog domowy i systemd
+# podstawia go sam, więc działa też po zmianie nazwy użytkownika.
+WorkingDirectory=%h/miku
+ExecStart=%h/miku/.venv/bin/python %h/miku/main.py --headless
+
+# Restart po awarii, ale nie w kółko: pięć prób w ciągu pięciu minut, potem
+# systemd odpuszcza. Bez tego limitu brak mikrofonu (kod wyjścia 1) trzymałby
+# procesor zajęty ciągłym restartowaniem.
+Restart=on-failure
+RestartSec=15
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Zamykanie: SIGTERM jest obsługiwany w main.py (patrz `_install_stop_handlers`),
+# więc `systemctl --user stop` kończy pracę czysto — mikrofon, głośnik i baza są
+# zamykane w bloku finally. 30 s wystarczy na dokończenie wypowiedzi.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Dziennik: wszystko idzie do journald (`journalctl --user -u miku-assistant`).
+# Program pisze też własne logi do logs/ w katalogu projektu.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=miku-assistant
+
+# Bufory Pythona wyłączone — inaczej journal dostaje komunikaty z opóźnieniem
+# albo nie dostaje ich wcale, gdy proces zostanie ubity.
+Environment=PYTHONUNBUFFERED=1
+
+# --- Ograniczenia (obrona w głąb) ---------------------------------------- #
+# Asystent ma narzędzia, które piszą po dysku i uruchamiają programy. Poniższe
+# ustawienia NIE zastępują polityki uprawnień z .env (FS_WRITE_DIRS, SHELL_*) —
+# są drugą, niezależną warstwą po stronie systemu.
+#
+# Uwaga na ProtectHome: asystent CZYTA i PISZE w katalogu domowym (baza pamięci,
+# notatki, katalogi z FS_READ_DIRS). Włączenie ProtectHome=yes odetnie mu je i
+# narzędzia plikowe przestaną działać — dlatego jest wyłączone świadomie.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=no
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=no
+
+# Pamięć: bez limitu Whisper i model embeddingów potrafią razem zająć kilka GB.
+# Wartość dobierz do swojej maszyny; zbyt niska kończy się ubiciem procesu
+# przez OOM killer w środku zdania.
+# MemoryMax=6G
+
+[Install]
+WantedBy=default.target

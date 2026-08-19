@@ -1,0 +1,31 @@
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# Katalog testów trafia na sys.path (import conftest), a katalog projektu jest
+# dokładany w tests/conftest.py — dzięki temu `pytest` działa z dowolnego cwd.
+pythonpath = [".", "tests"]
+filterwarnings = ["error::DeprecationWarning:audio.*", "error::DeprecationWarning:brain.*"]
+markers = ["hardware: testy wymagające fizycznego mikrofonu (domyślnie pomijane)"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "PL", "RUF"]
+ignore = ["PLR0912", "PLR0915", "PLR2004", "PLR0913"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = false
+ignore_missing_imports = true
+
+# CustomTkinter nie dostarcza typów, więc jego klasy są dla mypy `Any`, a tryb
+# strict zabrania dziedziczenia po `Any`. Wyjątek dotyczy WYŁĄCZNIE modułów z
+# widgetami — logika GUI (motyw, stan, wątek roboczy, formularz ustawień) nie
+# dotyka toolkitu i jest sprawdzana w pełnym rygorze.
+[[tool.mypy.overrides]]
+module = ["gui.app", "gui.chat", "gui.status", "gui.settings_panel"]
+disallow_subclassing_any = false

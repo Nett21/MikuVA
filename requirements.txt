@@ -1,0 +1,108 @@
+# Zależności Fazy 1 (rozmowa tekstowa z Ollamą).
+# Uwaga: lista musi pozostać zgodna z PACKAGE_REQUIREMENTS w config.py —
+# to na jej podstawie działa `python main.py --check-deps`.
+
+pydantic>=2.7,<3
+pydantic-settings>=2.3,<3
+python-dotenv>=1.0
+httpx>=0.27,<1
+
+# --- Faza 2: rozpoznawanie mowy ---
+# Bez tych pakietów asystent nadal działa — tryb głosowy jest po prostu wyłączony.
+numpy>=1.26
+sounddevice>=0.4.6
+faster-whisper>=1.0
+
+# Opcjonalnie: lepszy VAD. Bez niego działa wbudowany detektor energetyczny.
+# Instaluj osobno, bo pakiet nie ma kół dla każdej wersji Pythona i nieudana
+# kompilacja przerwałaby instalację całej reszty:
+#   pip install webrtcvad-wheels
+# webrtcvad-wheels>=2.0.14
+
+# --- Faza 4: synteza mowy ---
+# Piper jest opcjonalny i celowo NIE jest tu odkomentowany: ciągnie za sobą
+# onnxruntime, który nie ma kół dla każdej wersji Pythona — nieudana instalacja
+# przerwałaby instalację całej reszty. Bez niego asystent odpowiada tekstem.
+# Instalacja osobno (dowolny z dwóch sposobów, kod obsługuje oba):
+#   pip install piper-tts
+#   albo pobierz archiwum z github.com/rhasspy/piper i wskaż: PIPER_BINARY w .env
+# piper-tts>=1.2
+#
+# Sam pakiet nie wystarczy — potrzebny jest jeszcze GŁOS (plik .onnx):
+#   python scripts/prepare_offline.py --piper
+
+# --- Faza 5: pamięć długoterminowa ---
+# Celowo pusto: baza to sqlite3 z biblioteki standardowej. Świadoma decyzja —
+# jedna lokalna baza nie potrzebuje SQLAlchemy ani Alembica, a każdy dodatkowy
+# pakiet to kolejna rzecz, która może się nie zainstalować na cudzej maszynie.
+# Uwaga: moduł FTS5 (wyszukiwanie pełnotekstowe) jest OPCJĄ KOMPILACJI SQLite,
+# więc może go nie być — kod to wykrywa i schodzi na LIKE.
+
+# --- Faza 6: pamięć semantyczna (embeddingi) ---
+# Oba pakiety są OPCJONALNE i celowo nieodkomentowane — nieudana instalacja
+# jednego z nich nie może przerwać instalacji całej reszty.
+#
+# sentence-transformers ciągnie za sobą PyTorcha (kilka GB). Bez niego
+# embeddingi policzy Ollama, która i tak musi działać:
+#   ollama pull nomic-embed-text     +     EMBEDDING_ENGINE=ollama w .env
+# sentence-transformers>=3.0
+#
+# faiss-cpu tylko przyspiesza wyszukiwanie; bez niego liczy NumPy, a przy skali
+# osobistego asystenta (10^4-10^5 wektorów) różnicy się nie zauważy.
+# Koła faiss-cpu nie istnieją dla każdej wersji Pythona — stąd komentarz.
+# faiss-cpu>=1.8
+#
+# Model embeddingów pobiera się osobno (jak głos Pipera):
+#   python scripts/prepare_offline.py --embeddings
+
+# --- Faza 7: narzędzia (tool calling) i uprawnienia ---
+# Celowo pusto — i to nie przypadek. Cały framework narzędzi (brain/tool_router.py,
+# tools/, security/) stoi na bibliotece standardowej i na pydantic, który jest
+# wymagany od Fazy 1. Zero nowych pakietów = zero rzeczy, które mogą się nie
+# zainstalować na cudzej maszynie.
+# Warunek po stronie modelu, nie pakietów: natywny tool calling obsługują np.
+# qwen2.5, llama3.1+, mistral-nemo. Model bez tej obsługi nadal działa —
+# router czyta wywołania z treści odpowiedzi (fallback tekstowy).
+
+# --- Faza 8: narzędzia systemowe ---
+# Rdzeń działa bez nowych pakietów: pliki, aplikacje, adresy, notatki i powłoka
+# stoją na bibliotece standardowej. Dwie rzeczy są OPCJONALNE i celowo
+# nieodkomentowane — ich brak wyłącza dokładnie te narzędzia, których dotyczą,
+# a nie cokolwiek innego:
+#
+# psutil — lista i zamykanie procesów na Windowsie i macOS. Na Linuksie to samo
+# robi /proc z biblioteki standardowej, więc tam pakiet nie jest potrzebny:
+#   pip install psutil
+# psutil>=5.9
+#
+# pypdf — czytanie PDF-ów (narzędzia pdf.read i pdf.search):
+#   pip install pypdf
+# pypdf>=4.0
+
+# --- Faza 9: narzędzia sieciowe ---
+# Znowu pusto, i znowu nie przez przypadek. Do sieci wystarcza httpx (wymagany od
+# Fazy 1), a treść przetwarzamy biblioteką standardową: html.parser dla stron,
+# xml.etree dla kanałów RSS. Świadomie NIE ma tu beautifulsoup4, readability-lxml
+# ani feedparsera — każdy z nich ciągnie kompilowane zależności (lxml), które na
+# części maszyn nie mają kół i psują całą instalację.
+# Serwisy domyślne nie wymagają żadnego klucza API: pogoda z Open-Meteo,
+# wyszukiwanie z DuckDuckGo, wiadomości z kanałów RSS.
+
+# --- Faza 10: interfejs graficzny ---
+# Jedyny nowy pakiet całej fazy. Czysty Python (bez kompilacji), więc instaluje
+# się wszędzie tak samo i nie może przerwać instalacji reszty.
+# UWAGA: sam pakiet NIE wystarczy — potrzebna jest jeszcze biblioteka systemowa
+# Tk, której pip nie zainstaluje, bo to nie jest pakiet Pythona:
+#   Debian/Ubuntu:  sudo apt install python3-tk
+#   Arch/Manjaro:   sudo pacman -S tk
+#   Fedora:         sudo dnf install python3-tkinter
+#   macOS (brew):   brew install python-tk
+#   Windows:        instalator python.org → Modify → "tcl/tk and IDLE"
+# Robią to za Ciebie skrypty z katalogu scripts/ (pytając o zgodę). Bez Tk
+# asystent działa dalej w trybie terminalowym, a `python main.py --gui` mówi,
+# czego brakuje i jak to naprawić.
+customtkinter>=5.2
+
+# Kolejne fazy dopiszą tutaj swoje pakiety, np.:
+#   Faza 3 (wake word):     openwakeword
+# Każdy nowy pakiet należy też zarejestrować w config.PACKAGE_REQUIREMENTS.

@@ -1,0 +1,142 @@
+name: testy
+
+# Bez mikrofonu, bez GPU, bez działającej Ollamy i bez internetu w trakcie
+# testów. Cała warstwa sprzętowa i sieciowa jest podmieniona na atrapy
+# (tests/conftest.py), więc ten sam zestaw przechodzi na maszynie CI i na
+# laptopie — patrz sekcja „Testy" w README.
+#
+# UWAGA: zielone testy dowodzą poprawności LOGIKI, nie tego, że asystent
+# zadziała na konkretnym sprzęcie. CI nie sprawdzi mikrofonu, sterownika
+# dźwięku ani wersji CUDA. Od tego jest `python main.py --check-deps`
+# uruchomiony u siebie.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  # Ręczne uruchomienie z zakładki Actions — przydatne po zmianie w CI.
+  workflow_dispatch:
+
+# Nowy push do tej samej gałęzi anuluje poprzedni przebieg. Bez tego seria
+# commitów zajmuje kolejkę przebiegami, których wyniku i tak nikt nie przeczyta.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  testy:
+    name: pytest (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    strategy:
+      # Awaria jednej kombinacji nie ma ubijać pozostałych: chcemy wiedzieć,
+      # czy problem dotyczy jednego systemu, czy wszystkich.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Zależności
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      # Sprawdzenie, że KAŻDY moduł importuje się osobno. Wyłapuje cykliczne
+      # importy i literówki w nazwach, których testy jednostkowe mogą nie
+      # dotknąć, bo importują tylko to, czego akurat używają.
+      - name: Importy
+        shell: bash
+        run: |
+          python - <<'PY'
+          import importlib
+          import sys
+          from pathlib import Path
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root))
+          bledy = []
+          moduly = []
+          for path in sorted(root.rglob("*.py")):
+              parts = path.relative_to(root).parts
+              if any(p in {".venv", "__pycache__", "tests", "scripts", ".git"} for p in parts):
+                  continue
+              name = ".".join(path.relative_to(root).with_suffix("").parts)
+              name = name.removesuffix(".__init__")
+              moduly.append(name)
+              try:
+                  importlib.import_module(name)
+              except Exception as exc:
+                  bledy.append(f"{name}: {type(exc).__name__}: {exc}")
+
+          print(f"sprawdzono {len(moduly)} modulow")
+          for blad in bledy:
+              print(f"  BLAD {blad}")
+          raise SystemExit(1 if bledy else 0)
+          PY
+
+      - name: Testy
+        # Bez `.env` — testy mają być niezależne od konfiguracji maszyny,
+        # a na CI takiego pliku i tak nie ma. Gdyby któryś test go potrzebował,
+        # to jest błąd testu, nie środowiska.
+        run: python -m pytest -q
+
+      # Raport zależności NIE jest bramką: na CI brakuje mikrofonu, Ollamy
+      # i modeli, więc kod wyjścia 1 jest tu normalny. Uruchamiamy go, bo
+      # sprawdza całą warstwę detekcji na prawdziwym systemie — a to jedyne
+      # miejsce, gdzie widać, że coś się w niej wywraca na Windowsie.
+      - name: Detekcja środowiska (informacyjnie)
+        continue-on-error: true
+        run: python main.py --check-deps
+
+  jakosc:
+    name: ruff + mypy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Zależności
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      # Obie analizy mają w tym projekcie NIEZEROWY stan bazowy: ruff zgłasza
+      # ~430 trafień (w większości celowo leniwe importy warstw sprzętowych
+      # i polskie znaki w tekstach), mypy — trafienia w testach. Dlatego
+      # `continue-on-error`: wynik jest do PRZECZYTANIA, nie do zablokowania
+      # PR-a. Bramką jest pytest.
+      #
+      # Gdyby kiedyś udało się sprowadzić stan bazowy do zera, wystarczy
+      # skasować `continue-on-error` z obu kroków.
+      - name: ruff
+        continue-on-error: true
+        run: python -m ruff check --output-format=github .
+
+      - name: mypy
+        continue-on-error: true
+        run: python -m mypy .
