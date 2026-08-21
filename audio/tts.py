@@ -1095,12 +1095,12 @@ class PiperTTSProvider(TTSProvider):
         if self._voice is not None:
             parts.append(self._voice.describe())
         else:
-            parts.append("głos nie został jeszcze wybrany")
+            parts.append(t("tts.no_voice_selected"))
         if self._backend is not None:
             parts.append(self._backend.describe())
         speed = self._user().voice_speed
         if abs(speed - 1.0) > 0.01:
-            parts.append(f"tempo {speed:.2f}x")
+            parts.append(t("tts.speed_label", speed=f"{speed:.2f}"))
         return " · ".join(parts)
 
     def supports_language(self, language: str | None) -> bool:
@@ -1194,8 +1194,21 @@ def available_tts_engines() -> list[str]:
     return sorted(_PROVIDERS)
 
 
+def _create_rvc_provider(settings: Settings, user: UserSettings) -> TTSProvider:
+    """Dostawca głosu Miku (Faza 15) — import dopiero przy realnym wyborze.
+
+    Import jest w środku funkcji, nie na górze pliku, z dwóch powodów: żeby
+    ``audio/tts_rvc.py`` mógł importować ten moduł (inaczej mielibyśmy cykl)
+    oraz żeby nikt, kto używa samego Pipera, nie płacił za wciągnięcie torcha.
+    """
+    from audio.tts_rvc import RvcVoiceProvider
+
+    return RvcVoiceProvider(settings, user)
+
+
 register_tts_provider("piper", PiperTTSProvider)
 register_tts_provider("none", lambda settings, user: NullTTSProvider())
+register_tts_provider("rvc_miku", _create_rvc_provider)
 
 
 def create_tts_provider(
@@ -1700,6 +1713,7 @@ class SpeechOutput:
         if not spoken:
             return
         started = time.monotonic()
+        first_audio_s: float | None = None
         for chunk in self._provider.synthesize(spoken, language=self._language):
             if self._cancelled.is_set():
                 return
@@ -1709,6 +1723,23 @@ class SpeechOutput:
                 self._sink.open(chunk.sample_rate)
                 self._open_rate = chunk.sample_rate
             self._sink.write(chunk)
+            # Pierwszy zapis do wyjścia to moment, w którym dźwięk realnie
+            # rusza — wcześniejsze etapy to jeszcze liczenie. Ten pomiar
+            # obejmuje CAŁY łańcuch (synteza + ewentualna konwersja barwy)
+            # i jest tą liczbą, po której widać, czy mowa startuje szybko.
+            if first_audio_s is None:
+                first_audio_s = time.monotonic() - started
+                # Przez i18n, a nie literałem: ta linia sąsiaduje w logu
+                # z pomiarem z audio/tts_rvc.py i obie mają być w jednym języku.
+                logger.info(
+                    "Mowa: %s",
+                    t(
+                        "tts.first_audio",
+                        ms=f"{first_audio_s * 1000:.0f}",
+                        engine=self._provider.name,
+                        chars=len(spoken),
+                    ),
+                )
             self._spoken_chunks += 1
         logger.debug(
             "Wypowiedziano %d znaków w %.2f s: %r",

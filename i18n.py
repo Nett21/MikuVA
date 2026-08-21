@@ -768,6 +768,26 @@ _EN: Final[dict[str, str]] = {
     ),
     'deps.speaker.no_match_hint': 'fix AUDIO_OUTPUT_DEVICE or leave it empty (default device)',
     'deps.speaker.ok': '{count} output devices, selected: {selected}',
+    'deps.rvc.model_name': 'RVC voice model',
+    'deps.rvc.backend_name': 'RVC engine',
+    'deps.rvc.disabled': 'voice_engine is set to rvc_miku, but rvc.enabled is false',
+    'deps.rvc.disabled_hint': 'set "enabled": true in the "rvc" section of config/user_settings.json',
+    'deps.rvc.no_path': 'no path to a .pth model',
+    'deps.rvc.no_path_hint': (
+        'set rvc.model_path in config/user_settings.json — this project ships no voice model'
+    ),
+    'deps.rvc.missing': 'the files from the settings are not on disk: {paths}',
+    'deps.rvc.missing_hint': 'check rvc.model_path and rvc.index_path',
+    'deps.rvc.found': 'model found, index: {index}',
+    'deps.rvc.no_index': 'none (optional)',
+    'deps.rvc.backend_found': 'installed: {backend}',
+    'deps.rvc.backend_forced': 'forced by RVC_BACKEND: {backend}',
+    'deps.rvc.backend_missing': 'no RVC implementation installed',
+    'deps.rvc.backend_missing_hint': (
+        'run {script} (or point RVC_BACKEND at your own module); '
+        'without it the assistant speaks with the plain Piper voice'
+    ),
+    'deps.rvc.cpu_hint': 'no GPU — conversion will work, but latency will be noticeably higher',
     'deps.tts.name': 'Speech synthesis',
     'deps.tts.disabled_env': 'turned off by TTS_ENABLED=false',
     'deps.tts.disabled_engine': 'turned off by voice_engine: "{engine}"',
@@ -867,9 +887,9 @@ _EN: Final[dict[str, str]] = {
         '{requirements}'
     ),
     'install.run_script': 'run {script}',
-    'net.http_status': 'the server answered with HTTP {code}',
+    'net.download_http_status': 'the server answered with HTTP {code}',
     'net.no_connection': 'no connection ({reason})',
-    'net.timeout': 'timed out ({seconds} s)',
+    'net.download_timeout': 'timed out ({seconds} s)',
     'net.error': 'network error: {error}',
     'deps.vad.webrtc_missing': 'VAD_ENGINE=webrtc, but the webrtcvad package is not installed',
     'deps.vad.energy': 'energy detector (built in, no extra dependencies)',
@@ -1257,7 +1277,73 @@ _EN: Final[dict[str, str]] = {
     "confirm.no_phrase": "the required confirmation phrase is missing",
     "confirm.aborted": "cancelled",
     "confirm.no_channel": "no confirmation channel (running without an interactive terminal)",
+    # --- konwersja głosu RVC (audio/rvc.py, audio/tts_rvc.py) ------------- #
+    "rvc.no_worker_python": "No Python environment with RVC installed.",
+    "rvc.no_worker_python_hint": (
+        "run scripts/install-rvc.sh, or point RVC_WORKER_PYTHON at the interpreter yourself"
+    ),
+    "rvc.no_applio_path": "No Applio code found.",
+    "rvc.no_applio_path_hint": (
+        "run scripts/install-applio.sh, or point RVC_APPLIO_PATH at the Applio directory"
+    ),
+    "rvc.no_applio_python": "No Python environment with Applio installed.",
+    "rvc.no_applio_python_hint": (
+        "run scripts/install-applio.sh, or point RVC_APPLIO_PYTHON at the interpreter yourself"
+    ),
+    "rvc.no_worker_script": "The worker script is missing: {path}.",
+    "rvc.worker_spawn_failed": "Could not start {path} ({detail}).",
+    "rvc.worker_start_timeout": "The RVC process did not load the model within {seconds} s.",
+    "rvc.worker_start_timeout_hint": (
+        "raise RVC_WORKER_START_S — the first run also compiles CUDA kernels"
+    ),
+    "rvc.worker_load_failed": "The RVC process could not load the model ({detail}).",
+    "rvc.worker_ready": "separate process ready in {seconds} s, device {device}.",
+    "rvc.worker_died": "The RVC process stopped (exit code {code}).",
+    "rvc.worker_no_answer": "The RVC process stopped answering.",
+    "rvc.device.cpu": "CPU",
+    "rvc.device.gpu": "GPU ({name})",
+    "rvc.disabled": "voice conversion is off (rvc.enabled = false in config/user_settings.json).",
+    "rvc.status_off": "not running",
+    "rvc.no_model_path": "No path to the RVC model.",
+    "rvc.no_model_path_hint": (
+        "set rvc.model_path in config/user_settings.json to your own .pth file — "
+        "no voice model ships with this project"
+    ),
+    "rvc.missing_files": "The RVC files from the settings are not on disk: {paths}.",
+    "rvc.missing_files_hint": "check rvc.model_path and rvc.index_path in config/user_settings.json",
+    "rvc.no_backend": "No RVC implementation is installed.",
+    "rvc.no_backend_hint": (
+        "run ./scripts/install-applio.sh, or point RVC_BACKEND at your own module"
+    ),
+    "rvc.backend_import_failed": "Could not load the {backend} backend ({detail}).",
+    "rvc.backend_custom_hint": (
+        "a custom backend is a module with a create_backend(model_path, index_path, device) function"
+    ),
+    "rvc.backend_api_mismatch": "The {backend} backend has no {symbol} — probably a different version.",
+    "rvc.model_load_failed": "Could not load the RVC model {path} ({detail}).",
+    "rvc.no_output": "The backend produced no audio file.",
+    "rvc.wav_unsupported": "Unsupported WAV sample width: {width} bits.",
+    "rvc.convert_failed": "Voice conversion failed ({detail}).",
+    "rvc.converter_closed": "The converter has been shut down after an earlier failure.",
+    "rvc.timeout": "Conversion took longer than {seconds} s.",
+    "rvc.timeout_hint": "raise RVC_TIMEOUT_S, lower RVC_CHUNK_MIN_MS, or move the model to a GPU",
+    "rvc.on_cpu": (
+        "running on the CPU — expect noticeably higher latency than on a GPU. "
+        "Lower RVC_CHUNK_MIN_MS if speech starts too late."
+    ),
+    "rvc.on_gpu": "running on the GPU ({name}).",
+    "rvc.ready": "ready: backend {backend}, device {device}.",
+    "rvc.fallback_to_piper": "switching to the plain Piper voice — {reason}",
+    "rvc.fallback_to_backend": (
+        "Piper for the rest of this utterance, then trying the {backend} backend — {reason}"
+    ),
+    "rvc.describe_active": "{voice} [RVC: {backend}, {device}]",
+    "rvc.describe_fallback": "{base} (RVC off: {reason})",
+    "rvc.latency": "first audio after {total} ms (Piper {piper} ms + RVC {rvc} ms, engine {engine}).",
+    "rvc.latency_over": "{detail} That is above the {target} ms target.",
     # --- synteza mowy (audio/tts.py) -------------------------------------- #
+    "tts.speed_label": "speed {speed}x",
+    "tts.first_audio": "first audio after {ms} ms (engine {engine}, {chars} characters)",
     "tts.rate_mismatch": "The engine returned fragments with different sample rates.",
     "tts.rate_mismatch_hint": "this is a bug in the speech provider — please report it",
     "tts.package_failed": "Could not load the piper-tts package ({error}).",
@@ -2193,6 +2279,26 @@ _PL: Final[dict[str, str]] = {
         'popraw AUDIO_OUTPUT_DEVICE albo zostaw puste (urządzenie domyślne)'
     ),
     'deps.speaker.ok': '{count} urządzeń wyjściowych, wybrane: {selected}',
+    'deps.rvc.model_name': 'Model głosu RVC',
+    'deps.rvc.backend_name': 'Silnik RVC',
+    'deps.rvc.disabled': 'voice_engine to rvc_miku, ale rvc.enabled jest false',
+    'deps.rvc.disabled_hint': 'ustaw "enabled": true w sekcji "rvc" w config/user_settings.json',
+    'deps.rvc.no_path': 'brak ścieżki do modelu .pth',
+    'deps.rvc.no_path_hint': (
+        'ustaw rvc.model_path w config/user_settings.json — projekt nie zawiera żadnego modelu głosu'
+    ),
+    'deps.rvc.missing': 'plików z ustawień nie ma na dysku: {paths}',
+    'deps.rvc.missing_hint': 'sprawdź rvc.model_path i rvc.index_path',
+    'deps.rvc.found': 'model znaleziony, indeks: {index}',
+    'deps.rvc.no_index': 'brak (opcjonalny)',
+    'deps.rvc.backend_found': 'zainstalowane: {backend}',
+    'deps.rvc.backend_forced': 'wymuszone przez RVC_BACKEND: {backend}',
+    'deps.rvc.backend_missing': 'nie ma zainstalowanej żadnej implementacji RVC',
+    'deps.rvc.backend_missing_hint': (
+        'uruchom {script} (albo wskaż własny moduł w RVC_BACKEND); '
+        'bez tego asystent mówi zwykłym głosem Pipera'
+    ),
+    'deps.rvc.cpu_hint': 'brak GPU — konwersja zadziała, ale opóźnienie będzie zauważalnie większe',
     'deps.tts.name': 'Synteza mowy',
     'deps.tts.disabled_env': 'wyłączona ustawieniem TTS_ENABLED=false',
     'deps.tts.disabled_engine': 'wyłączona ustawieniem voice_engine: "{engine}"',
@@ -2291,9 +2397,9 @@ _PL: Final[dict[str, str]] = {
         '{requirements}'
     ),
     'install.run_script': 'uruchom {script}',
-    'net.http_status': 'serwer odpowiedział kodem HTTP {code}',
+    'net.download_http_status': 'serwer odpowiedział kodem HTTP {code}',
     'net.no_connection': 'brak połączenia ({reason})',
-    'net.timeout': 'przekroczono limit czasu ({seconds} s)',
+    'net.download_timeout': 'przekroczono limit czasu ({seconds} s)',
     'net.error': 'błąd sieci: {error}',
     'deps.vad.webrtc_missing': 'VAD_ENGINE=webrtc, ale pakiet webrtcvad nie jest zainstalowany',
     'deps.vad.energy': 'detektor energetyczny (wbudowany, bez dodatkowych zależności)',
@@ -2680,6 +2786,72 @@ _PL: Final[dict[str, str]] = {
     "confirm.aborted": "anulowane",
     "confirm.no_channel": "brak kanału potwierdzeń (praca bez interaktywnego terminala)",
     # --- synteza mowy (audio/tts.py) -------------------------------------- #
+    # --- konwersja głosu RVC (audio/rvc.py, audio/tts_rvc.py) ------------- #
+    "rvc.no_worker_python": "Nie ma środowiska Pythona z zainstalowanym RVC.",
+    "rvc.no_worker_python_hint": (
+        "uruchom scripts/install-rvc.sh albo wskaż interpreter sam w RVC_WORKER_PYTHON"
+    ),
+    "rvc.no_applio_path": "Nie znalazłem kodu Applio.",
+    "rvc.no_applio_path_hint": (
+        "uruchom scripts/install-applio.sh albo wskaż katalog Applio w RVC_APPLIO_PATH"
+    ),
+    "rvc.no_applio_python": "Nie ma środowiska Pythona z zainstalowanym Applio.",
+    "rvc.no_applio_python_hint": (
+        "uruchom scripts/install-applio.sh albo wskaż interpreter sam w RVC_APPLIO_PYTHON"
+    ),
+    "rvc.no_worker_script": "Brakuje skryptu pracownika: {path}.",
+    "rvc.worker_spawn_failed": "Nie udało się uruchomić {path} ({detail}).",
+    "rvc.worker_start_timeout": "Proces RVC nie wczytał modelu w {seconds} s.",
+    "rvc.worker_start_timeout_hint": (
+        "zwiększ RVC_WORKER_START_S — przy pierwszym uruchomieniu dochodzi kompilacja jąder CUDA"
+    ),
+    "rvc.worker_load_failed": "Proces RVC nie wczytał modelu ({detail}).",
+    "rvc.worker_ready": "osobny proces gotowy w {seconds} s, urządzenie {device}.",
+    "rvc.worker_died": "Proces RVC przestał działać (kod wyjścia {code}).",
+    "rvc.worker_no_answer": "Proces RVC przestał odpowiadać.",
+    "rvc.device.cpu": "CPU",
+    "rvc.device.gpu": "GPU ({name})",
+    "rvc.disabled": "konwersja głosu wyłączona (rvc.enabled = false w config/user_settings.json).",
+    "rvc.status_off": "nie działa",
+    "rvc.no_model_path": "Brak ścieżki do modelu RVC.",
+    "rvc.no_model_path_hint": (
+        "ustaw rvc.model_path w config/user_settings.json na własny plik .pth — "
+        "projekt nie zawiera żadnego modelu głosu"
+    ),
+    "rvc.missing_files": "Plików RVC z ustawień nie ma na dysku: {paths}.",
+    "rvc.missing_files_hint": "sprawdź rvc.model_path i rvc.index_path w config/user_settings.json",
+    "rvc.no_backend": "Nie ma zainstalowanej żadnej implementacji RVC.",
+    "rvc.no_backend_hint": (
+        "uruchom ./scripts/install-applio.sh albo wskaż własny moduł w RVC_BACKEND"
+    ),
+    "rvc.backend_import_failed": "Nie udało się wczytać backendu {backend} ({detail}).",
+    "rvc.backend_custom_hint": (
+        "własny backend to moduł z funkcją create_backend(model_path, index_path, device)"
+    ),
+    "rvc.backend_api_mismatch": "Backend {backend} nie ma {symbol} — prawdopodobnie inna wersja.",
+    "rvc.model_load_failed": "Nie udało się wczytać modelu RVC {path} ({detail}).",
+    "rvc.no_output": "Backend nie zwrócił pliku z dźwiękiem.",
+    "rvc.wav_unsupported": "Nieobsługiwana szerokość próbki WAV: {width} bitów.",
+    "rvc.convert_failed": "Konwersja głosu nie powiodła się ({detail}).",
+    "rvc.converter_closed": "Konwerter został zamknięty po wcześniejszej awarii.",
+    "rvc.timeout": "Konwersja trwała dłużej niż {seconds} s.",
+    "rvc.timeout_hint": "zwiększ RVC_TIMEOUT_S, zmniejsz RVC_CHUNK_MIN_MS albo przenieś model na GPU",
+    "rvc.on_cpu": (
+        "liczy na CPU — opóźnienie będzie zauważalnie większe niż na GPU. "
+        "Zmniejsz RVC_CHUNK_MIN_MS, jeśli mowa startuje za późno."
+    ),
+    "rvc.on_gpu": "liczy na GPU ({name}).",
+    "rvc.ready": "gotowe: backend {backend}, urządzenie {device}.",
+    "rvc.fallback_to_piper": "przechodzę na zwykły głos Pipera — {reason}",
+    "rvc.fallback_to_backend": (
+        "do końca tej wypowiedzi mówi Piper, potem spróbuję backendu {backend} — {reason}"
+    ),
+    "rvc.describe_active": "{voice} [RVC: {backend}, {device}]",
+    "rvc.describe_fallback": "{base} (RVC nieaktywne: {reason})",
+    "rvc.latency": "pierwszy dźwięk po {total} ms (Piper {piper} ms + RVC {rvc} ms, silnik {engine}).",
+    "rvc.latency_over": "{detail} To powyżej celu {target} ms.",
+    "tts.speed_label": "tempo {speed}x",
+    "tts.first_audio": "pierwszy dźwięk po {ms} ms (silnik {engine}, {chars} znaków)",
     "tts.rate_mismatch": "Silnik zwrócił fragmenty o różnych częstotliwościach próbkowania.",
     "tts.rate_mismatch_hint": "to błąd implementacji dostawcy mowy — zgłoś go",
     "tts.package_failed": "Nie udało się załadować pakietu piper-tts ({error}).",

@@ -8,7 +8,7 @@ Everything below can be checked before you send a change:
 
 ```bash
 pip install -r requirements-dev.txt
-pytest          # ~1350 tests, ~25 s, no microphone and no GPU needed
+pytest          # ~1390 tests, ~25 s, no microphone and no GPU needed
 ruff check .
 mypy .
 ```

@@ -29,9 +29,9 @@ GITIGNORE = PROJECT_ROOT / ".gitignore"
 
 # Katalogi, których zawartość nigdy nie trafia do repozytorium.
 POMIJANE_KATALOGI = frozenset({
-    ".git", ".venv", "venv", "env", "ENV", "__pycache__", "models", "vendor",
-    "logs", "data", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".idea",
-    ".vscode", "build", "dist", "node_modules",
+    ".git", ".venv", ".venv-rvc", ".venv-applio", "venv", "env", "ENV", "__pycache__",
+    "models", "vendor", "third_party", "logs", "data", ".pytest_cache", ".mypy_cache",
+    ".ruff_cache", ".idea", ".vscode", "build", "dist", "node_modules",
 })
 
 # Pliki lokalne — istnieją na maszynie, ale są w .gitignore.
@@ -96,6 +96,9 @@ def publikowane() -> list[tuple[str, str]]:
         "logs/",
         "__pycache__/",
         ".venv/",
+        ".venv-rvc/",
+        ".venv-applio/",              # ~7 GB torcha i bibliotek CUDA
+        "third_party/",               # klon Applio razem z jego wagami
         "venv/",
         ".pytest_cache/",
         ".mypy_cache/",
@@ -221,11 +224,18 @@ def test_zadna_sciezka_do_modelu_rvc_nie_jest_zaszyta(publikowane: list[tuple[st
     konfiguracji — nigdy ścieżki do konkretnego pliku.
     """
     wzorzec = re.compile(r"['\"]([^'\"\n]*/[^'\"\n]*\.(?:pth|index))['\"]")
+    # Wyjątek: `models/…` to katalog projektu, ignorowany przez gita i pusty
+    # w repozytorium. Taka ścieżka w dokumentacji jest PRZYKŁADEM, a nie
+    # śladem po konkretnej maszynie — a przykład musi wyglądać jak prawdziwy,
+    # żeby dało się go przepisać.
+    przykladowe = re.compile(r"^models/")
     trafienia = []
     for nazwa, zawartosc in publikowane:
         if nazwa.startswith("tests/") or nazwa == "tests/test_repository.py":
             continue  # testy używają ścieżek tymczasowych z tmp_path
         for dopasowanie in wzorzec.finditer(zawartosc):
+            if przykladowe.match(dopasowanie.group(1)):
+                continue
             trafienia.append(f"{nazwa}: {dopasowanie.group(1)}")
     assert not trafienia, "zaszyte ścieżki do modeli:\n" + "\n".join(trafienia)
 

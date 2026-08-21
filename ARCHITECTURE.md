@@ -105,6 +105,9 @@ assistant/
 │   ├── wakeword.py             # openWakeWord / Porcupine / "always-on" (interchangeable)
 │   ├── whisper.py              # faster-whisper adapter (STT)
 │   ├── tts.py                  # Piper adapter (+ fallback engine)
+│   ├── rvc.py                  # voice conversion: backend contract, device, timeout,
+│   │                           #   out-of-process backends (rvc_python, Applio)
+│   ├── tts_rvc.py              # TTSProvider that wraps Piper in RVC (the Miku voice)
 │   ├── output.py               # [DEPARTURE] playback, queue, barge-in, ducking
 │   └── resample.py             # [DEPARTURE] SR/format conversions (16k mono int16 ↔ 22.05k)
 │

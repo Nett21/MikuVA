@@ -272,6 +272,75 @@ class Settings(BaseSettings):
     # Ile sekund dźwięku wolno trzymać w kolejce odtwarzania.
     audio_output_queue_seconds: float = Field(default=10.0, ge=0.5, le=300.0)
 
+    # --- RVC: konwersja barwy głosu (Faza 15) ---
+    #
+    # Co należy do KTÓREJ warstwy konfiguracji: ścieżki do modelu i parametry
+    # brzmienia (pitch, index rate) to wybór użytkownika — siedzą w
+    # ``config/user_settings.json`` w sekcji ``rvc``. Tutaj są wyłącznie
+    # pokrętła MECHANIKI: czym liczyć, jak długie kawałki i kiedy się poddać.
+    #
+    # Implementacji RVC jest w obiegu kilka i żadna nie jest „tą jedyną".
+    # Puste = wykryj automatycznie to, co jest zainstalowane. Wpisana nazwa
+    # (np. ``rvc_python``) albo ścieżka modułu wymusza konkretny backend —
+    # przydatne, gdy w środowisku jest więcej niż jeden.
+    rvc_backend: str = ""
+    rvc_device: Literal["auto", "cuda", "cpu"] = "auto"
+    # RVC potrzebuje kawałka audio, żeby w ogóle wyliczyć wysokość dźwięku:
+    # 20-milisekundowe ramki Pipera konwertowane po kolei brzmią jak bulgot.
+    # Dlatego zbieramy je do tej długości i dopiero wtedy przepuszczamy przez
+    # model. To jest DOKŁADNIE ten kompromis, który decyduje o opóźnieniu:
+    # mniej = szybciej i gorzej, więcej = ładniej i później.
+    rvc_chunk_min_ms: int = Field(default=480, ge=80, le=5_000)
+    # Górna granica sklejania — nawet jeśli Piper sypie drobinami, po tylu
+    # milisekundach oddajemy to, co jest, żeby odtwarzanie kiedykolwiek ruszyło.
+    rvc_chunk_max_ms: int = Field(default=1_500, ge=200, le=20_000)
+    # Cel opóźnienia end-to-end (tekst → pierwszy dźwięk). Przekroczenie NIE
+    # jest błędem — jest wpisem WARNING w logu, żeby dało się to zobaczyć
+    # liczbowo, a nie „na ucho".
+    rvc_latency_target_ms: int = Field(default=1_000, ge=100, le=60_000)
+    # Limit na jedno przejście przez model. Zawieszony backend nie ma prawa
+    # zatrzymać asystenta — po tym czasie lecimy dalej głosem Pipera.
+    rvc_timeout_s: float = Field(default=20.0, gt=0.0, le=300.0)
+    # Interpreter środowiska, w którym mieszka RVC. Biblioteki RVC (fairseq,
+    # omegaconf) nie działają na Pythonie nowszym niż 3.10, a asystent działa
+    # na 3.12+ — więc RVC bywa w OSOBNYM venvie i liczy w osobnym procesie.
+    # Puste = poszukaj `.venv-rvc` w katalogu projektu.
+    rvc_worker_python: str = ""
+    # Ile czekać, aż osobny proces wczyta model. To sekundy, nie milisekundy:
+    # RVC to kilkaset megabajtów, a przy pierwszym uruchomieniu dochodzi
+    # kompilacja jąder CUDA.
+    rvc_worker_start_s: float = Field(default=120.0, gt=0.0, le=900.0)
+    # --- Applio ---------------------------------------------------------- #
+    #
+    # Applio to ten sam RVC, ale bez `fairseq` — embedder idzie przez
+    # `transformers`. W praktyce znaczy to dwie rzeczy: działa na nowszym
+    # Pythonie (3.12+) i liczy zauważalnie szybciej. Ceną jest to, że nie
+    # jest pakietem z PyPI, tylko repozytorium, które trzeba mieć na dysku.
+    #
+    # Katalog z kodem Applio. Puste = poszukaj `third_party/Applio`
+    # w katalogu projektu.
+    rvc_applio_path: str = ""
+    # Interpreter środowiska Applio. Puste = poszukaj `.venv-applio`.
+    # Osobny od `rvc_worker_python`, bo oba środowiska mają sprzeczne
+    # zależności: `rvc-python` żąda fairseq i Pythona 3.10, Applio przypina
+    # torcha 2.11 i wymaga 3.12+.
+    rvc_applio_python: str = ""
+    # Sposób wykrywania wysokości tonu — GŁÓWNE pokrętło szybkości Applio.
+    # Zmierzone na RTX 3060, fragment 480 ms, mediana z pięciu przebiegów:
+    #
+    #     fcpe   205 ms   (rtf 0.43)   najszybsze
+    #     crepe  317 ms   (rtf 0.66)
+    #     rmvpe  482 ms   (rtf 1.00)   domyślne
+    #
+    # Domyślnym zostaje `rmvpe`, bo to wybór samego Applio i punkt odniesienia
+    # dla jakości — a różnicy w barwie nie da się ocenić miarką, tylko uchem.
+    # Kto woli zapas czasu od ostatniego procenta jakości, wpisuje `fcpe`.
+    # Dotyczy wyłącznie backendu `applio`; `rvc_python` tego nie czyta.
+    rvc_f0_method: str = "rmvpe"
+    # Model cech mowy (embedder) Applio. `contentvec` to ten, który pobiera
+    # skrypt instalacyjny; inne wymagają własnoręcznego pobrania wag.
+    rvc_embedder: str = "contentvec"
+
     # --- VAD (Faza 2) ---
     vad_engine: Literal["auto", "webrtc", "energy"] = "auto"
     vad_aggressiveness: int = Field(default=2, ge=0, le=3)
@@ -1699,11 +1768,11 @@ def _http_get_json(url: str, timeout: float) -> tuple[Any | None, str | None]:
         with opener.open(request, timeout=timeout) as response:  # nosec B310
             raw = response.read()
     except urllib.error.HTTPError as exc:
-        return None, t("net.http_status", code=exc.code)
+        return None, t("net.download_http_status", code=exc.code)
     except urllib.error.URLError as exc:
         return None, t("net.no_connection", reason=exc.reason)
     except (TimeoutError, socket.timeout):
-        return None, t("net.timeout", seconds=f"{timeout:.0f}")
+        return None, t("net.download_timeout", seconds=f"{timeout:.0f}")
     except (OSError, ValueError) as exc:
         return None, t("net.error", error=exc)
 

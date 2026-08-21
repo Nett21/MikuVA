@@ -530,6 +530,85 @@ def _check_tts(context: DependencyContext) -> list[DependencyCheck]:
         )
 
     checks.append(_check_speaker(context))
+    checks.extend(_check_rvc(context))
+    return checks
+
+
+def _check_rvc(context: DependencyContext) -> list[DependencyCheck]:
+    """Faza 15: model RVC i implementacja, która go policzy.
+
+    Pokazujemy to TYLKO wtedy, gdy użytkownik o RVC poprosił. Dla kogoś, kto
+    używa samego Pipera, byłyby to dwie pozycje na czerwono opisujące funkcję,
+    której nie włączał — a raport ma prowadzić do naprawy, nie straszyć.
+    """
+    from audio.rvc import (  # noqa: PLC0415 - unika cyklu
+        INSTALL_APPLIO_SCRIPT,
+        available_rvc_backends,
+        resolve_rvc_device,
+    )
+
+    user = context.user_settings
+    rvc = user.rvc
+    if user.voice_engine != "rvc_miku" and not rvc.enabled:
+        return []
+
+    checks: list[DependencyCheck] = []
+
+    model = rvc.resolved_model_path
+    missing = rvc.missing_files()
+    if not rvc.enabled:
+        detail, hint, ok, path = t("deps.rvc.disabled"), t("deps.rvc.disabled_hint"), False, None
+    elif model is None:
+        detail, hint, ok, path = t("deps.rvc.no_path"), t("deps.rvc.no_path_hint"), False, None
+    elif missing:
+        detail = t("deps.rvc.missing", paths=", ".join(str(item) for item in missing))
+        hint, ok, path = t("deps.rvc.missing_hint"), False, str(model)
+    else:
+        index = rvc.resolved_index_path
+        detail = t(
+            "deps.rvc.found",
+            index=str(index) if index is not None else t("deps.rvc.no_index"),
+        )
+        hint, ok, path = "", True, str(model)
+
+    checks.append(
+        DependencyCheck(
+            name=t("deps.rvc.model_name"),
+            category="model",
+            required=False,
+            ok=ok,
+            detail=detail,
+            path=path,
+            hint=hint,
+            phase=15,
+        )
+    )
+
+    backends = available_rvc_backends(context.settings)
+    wanted = context.settings.rvc_backend.strip()
+    device = resolve_rvc_device(context.settings, context.gpu)
+    if wanted:
+        backend_ok, backend_detail = True, t("deps.rvc.backend_forced", backend=wanted)
+    elif backends:
+        backend_ok, backend_detail = True, t("deps.rvc.backend_found", backend=", ".join(backends))
+    else:
+        backend_ok, backend_detail = False, t("deps.rvc.backend_missing")
+
+    checks.append(
+        DependencyCheck(
+            name=t("deps.rvc.backend_name"),
+            category="package",
+            required=False,
+            ok=backend_ok,
+            detail=f"{backend_detail} — {device.describe()}",
+            hint=(
+                t("deps.rvc.backend_missing_hint", script=INSTALL_APPLIO_SCRIPT)
+                if not backend_ok
+                else (t("deps.rvc.cpu_hint") if device.is_cpu else "")
+            ),
+            phase=15,
+        )
+    )
     return checks
 
 

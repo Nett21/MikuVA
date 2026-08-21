@@ -208,13 +208,19 @@ def test_readme_ma_sekcje_ograniczen(readme: str) -> None:
         assert temat in readme, f"sekcja ograniczeń nie porusza tematu: {temat}"
 
 
-def test_readme_nie_obiecuje_dzialajacego_rvc(readme: str) -> None:
-    """RVC jest przygotowane w konfiguracji, ale niezaimplementowane.
+def test_readme_mowi_czego_do_rvc_brakuje(readme: str) -> None:
+    """RVC działa od Fazy 15, ale wymaga dwóch rzeczy, których tu nie ma.
 
-    README ma to mówić wprost — inaczej ktoś wpisze ścieżkę do modelu i będzie
-    szukał, czemu nic się nie dzieje.
+    Do Fazy 14 ten test pilnował ODWROTNEJ rzeczy: że README nie obiecuje
+    działającego RVC. Teraz obietnica jest prawdziwa, więc pilnujemy tego, co
+    stało się nowym źródłem nieporozumień — że model i silnik trzeba dostarczyć
+    samemu, a bez nich asystent mówi Piperem, zamiast milczeć.
     """
-    assert "not implemented" in readme or "not working yet" in readme
+    assert "no voice model" in readme, "README nie mówi, że model trzeba dostarczyć samemu"
+    assert "rvc-python" in readme, "README nie mówi, skąd wziąć silnik RVC"
+    assert "falls back to the plain Piper voice" in readme, (
+        "README nie mówi, co się dzieje, gdy RVC zawiedzie"
+    )
 
 
 def test_readme_nie_zawiera_sciezek_z_konkretnej_maszyny(readme: str) -> None:
@@ -264,6 +270,8 @@ def test_readme_wymienia_kazdy_skrypt_instalacyjny(readme: str) -> None:
         "install-linux-generic.sh",
         "install-macos.sh",
         "install.sh",
+        "install-rvc.sh",
+        "install-applio.sh",
     ):
         assert nazwa in readme, f"README nie wymienia {nazwa}"
 

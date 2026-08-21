@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-3.12%20%7C%203.13-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Status: phases 1–15](https://img.shields.io/badge/status-work%20in%20progress%20%C2%B7%20phases%201--15-orange.svg)](#project-status)
-[![Tests](https://img.shields.io/badge/tests-1300%2B-brightgreen.svg)](#13-tests)
+[![Tests](https://img.shields.io/badge/tests-1380%2B-brightgreen.svg)](#13-tests)
 [![Offline](https://img.shields.io/badge/runs-offline-blue.svg)](#working-without-the-internet)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-lightgrey.svg)](#3-installation--windows-11)
 
@@ -58,9 +58,10 @@ Details, variants and what exactly each script does:
 
 ## Project status
 
-**Work in progress.** Phases 1–14 are implemented and covered by tests; phase 15
-(RVC) has its configuration prepared but **does not work** — see
-[Limitations](#rvc-phase-15--not-working-yet).
+**Phases 1–15 are implemented and covered by tests.** Phase 15 (the Miku voice
+via RVC) works only if you supply your own model — none ships with this project,
+and without one the assistant simply speaks with the Piper voice. Read
+[what RVC costs in latency](#rvc-phase-15--latency-is-the-price) before enabling it.
 
 | | Phase | What it gives you |
 |---|---|---|
@@ -75,10 +76,10 @@ Details, variants and what exactly each script does:
 | ✅ | 9 — Web tools | search, weather, news, YouTube — no API keys required |
 | ✅ | 10 — Graphical interface | window (CustomTkinter), settings screen, interface language |
 | ✅ | 11 — Plugins | user extensions: reminders, Home Assistant, a skeleton to copy |
-| ✅ | 12 — Tests | ~1300 tests on fakes: no microphone, GPU, Ollama or internet needed |
+| ✅ | 12 — Tests | ~1390 tests on fakes: no microphone, GPU, Ollama or internet needed |
 | ✅ | 13 — Installers | scripts for Windows, apt, pacman and the remaining distributions |
 | ✅ | 14 — Service mode | `--headless`, autostart via systemd `--user` and Task Scheduler |
-| 🚧 | 15 — Voice conversion (RVC) | **configuration ready, implementation missing** |
+| ✅ | 15 — Voice conversion (RVC) | the Miku voice layered on Piper, streamed sentence by sentence; **your own model required** |
 | 📋 | — | planned: more plugins, better intent detection, more interface languages |
 
 **What this is:** a program for ONE person on ONE computer. It talks, it
@@ -99,7 +100,7 @@ installing, not after.
 2. [Architecture](#2-architecture)
 3. [Installation — Windows 11](#3-installation--windows-11)
 4. [Installation — Arch Linux](#4-installation--arch-linux)
-5. [Configuration: Ollama, Whisper, Piper](#5-configuration-ollama-whisper-piper)
+5. [Configuration: Ollama, Whisper, Piper, RVC](#5-configuration-ollama-whisper-piper-rvc)
 6. [Two layers of configuration](#6-two-layers-of-configuration)
 7. [Run modes and autostart](#7-run-modes-and-autostart)
 8. [Memory](#8-memory)
@@ -145,6 +146,8 @@ a readiness report.
 | **Fedora, openSUSE, Alpine, others** | `./scripts/install-linux-generic.sh` | detects `dnf`/`zypper`/`apk`; with no known manager it prints a list for manual installation |
 | **macOS** | `./scripts/install-macos.sh` | Homebrew; platform is **untested** |
 | **not sure which** | `./scripts/install.sh` | detects the system and hands the work to the right one |
+| **the Miku voice (RVC), Linux** | `./scripts/install-applio.sh` | **optional**, run it after the one above; the default RVC backend, needs Python 3.12+ — see [Applio](#applio--the-default-backend) |
+| **the Miku voice, older backend** | `./scripts/install-rvc.sh` | **optional**, a fallback only; slower and needs Python 3.10 — see [`rvc-python`](#rvc-python--the-older-fallback) |
 
 ```bash
 ./scripts/install.sh              # asks before every step
@@ -287,7 +290,7 @@ machine, qwen2.5:7b, three turns:
 
 Dependencies run **one way**. `config.py` knows about nothing else; `audio/`
 does not know about `brain/`; `tools/` does not know about the language model.
-That is what makes every layer testable with fakes — and why 1300 tests pass on
+That is what makes every layer testable with fakes — and why 1390 tests pass on
 a machine with no microphone, no GPU and no running Ollama.
 
 ### Directories
@@ -298,7 +301,7 @@ config.py              the ONLY place that asks about the system, paths and hard
 i18n.py                interface texts (en/pl); the English catalogue is the reference
 logging_setup.py       rotating logs into logs/
 
-audio/                 microphone, VAD, wake word, Whisper, Piper
+audio/                 microphone, VAD, wake word, Whisper, Piper, RVC
 brain/                 Ollama, conversation window, memory, embeddings, router, turn
 database/              SQLite: schema, migrations, repositories
 tools/                 the tools visible to the model
@@ -309,7 +312,7 @@ plugins/               extensions — including a ready skeleton, `przyklad/`
 
 scripts/               installers, offline preparation, autostart
   systemd/             template for a systemd --user unit
-tests/                 ~1300 tests, all on fakes
+tests/                 ~1390 tests, all on fakes
 
 config/                user_settings.json, the dependency report
 models/                whisper/, piper/, embeddings/ — models INSIDE THE PROJECT
@@ -581,7 +584,7 @@ assistant that is the correct behaviour, not a limitation.
 | `PYTHONUNBUFFERED=1` | | without it the journal receives messages late, or not at all |
 
 ---
-## 5. Configuration: Ollama, Whisper, Piper
+## 5. Configuration: Ollama, Whisper, Piper, RVC
 
 ### Ollama — the language model
 
@@ -733,6 +736,272 @@ Piper works in two ways: as a **Python package** (`piper-tts`) or as a
 **program** (`piper` in PATH). The assistant takes whichever is present — and
 when neither is, it says so once and carries on in text.
 
+### RVC — the Miku voice
+
+RVC does not synthesise speech. It takes what Piper has already said and
+**changes the timbre** — so it is a layer on top of the previous section, not a
+replacement for it. Turning it off leaves you with a working assistant that
+simply speaks in a different voice.
+
+> **This project contains no voice model and never will.** `.pth` and `.index`
+> files belong to whoever trained them, and the Hatsune Miku voice is
+> encumbered by Crypton Future Media's rights. You supply your own files and
+> you are responsible for their legality — see
+> [Licence and rights](#16-licence-and-rights).
+
+Nor is the RVC engine itself bundled — and neither implementation can live in
+the assistant's own environment:
+
+> **No RVC engine runs on the Python this project needs.** Applio requires
+> 3.12 or newer and insists on its own working directory; `rvc-python` pulls in
+> `fairseq==0.12.2`, which fails to import on 3.11 and newer. Whichever you
+> pick, it gets **its own virtual environment** and runs in a **separate
+> process**, talking to the assistant over a pipe.
+
+The default is **Applio**, because it is measurably faster. One script:
+
+```bash
+./scripts/install-applio.sh
+```
+
+Leave `RVC_BACKEND` empty and it is found and preferred on its own. The model
+loads once, when the assistant starts, and stays in memory; only WAV fragments
+cross the pipe. Starting a process per sentence would cost more than the
+conversion.
+
+#### Applio — the default backend
+
+[Applio](https://github.com/IAHispano/Applio) is the same RVC method with one
+decisive difference: **no `fairseq`**. It reads speech features through
+`transformers` instead, which lifts the Python 3.10 ceiling and — more to the
+point — makes conversion considerably faster.
+
+Measured on this project, RTX 3060, one model, one code path, median of five
+runs per size:
+
+| audio in | Applio (`rmvpe`) | `rvc_python` | speed-up |
+|---|---|---|---|
+| 480 ms | 487 ms | 799 ms | 1.6× |
+| 600 ms | 478 ms | 774 ms | 1.6× |
+| 1000 ms | 493 ms | 791 ms | 1.6× |
+| 1500 ms | 509 ms | 823 ms | 1.6× |
+
+The cost per call is close to **constant** — it barely tracks how much audio
+goes in, because it is dominated by fixed work, not by length. That matters
+more than the ratio: with `rvc_python` at the default `RVC_CHUNK_MIN_MS=480`
+the realtime factor is 1.66, so conversion falls behind speech and the gap
+grows with every sentence. Applio brings it to 1.01 — and the pitch-detection
+method takes it further:
+
+| `RVC_F0_METHOD` | 480 ms fragment | realtime factor |
+|---|---|---|
+| `fcpe` | 205 ms | 0.43 |
+| `crepe` | 317 ms | 0.66 |
+| `rmvpe` (default) | 482 ms | 1.00 |
+
+`rmvpe` stays the default because it is Applio's own choice and the quality
+reference; `fcpe` is nearly four times faster than `rvc_python` and the
+difference in timbre is a matter for your ears, not for a stopwatch.
+
+Installing it is one script:
+
+```bash
+./scripts/install-applio.sh                        # clones Applio, builds .venv-applio
+./scripts/install-applio.sh --python /path/to/python3.12
+./scripts/install-applio.sh --force                # rebuild from scratch
+./scripts/install-applio.sh --full                 # every Applio dependency
+```
+
+It needs **Python 3.12 or newer** — not a preference but a consequence of
+Applio's own pins (`scipy==1.18.0` declares `Requires-Python >=3.12`).
+`mise install python@3.12` will provide one. By default the script installs
+only what the inference path imports, skipping gradio, tensorboard and
+matplotlib; `--full` installs the lot if something turns out to be missing.
+Unlike Applio's own `run-install.sh`, it never uses `sudo` and installs
+nothing system-wide.
+
+Then in `.env`:
+
+```bash
+RVC_BACKEND=applio
+```
+
+Paths are found on their own — `third_party/Applio` and `.venv-applio` — and
+`RVC_APPLIO_PATH` / `RVC_APPLIO_PYTHON` override them. With `RVC_BACKEND`
+empty and both installed, Applio wins automatically, because it is faster.
+
+One detail worth knowing if you move things around: the worker process is
+started **with Applio's directory as its working directory**. Applio does
+`now_dir = os.getcwd()` when imported and looks for its embedder and pitch
+predictors relative to that. Started from anywhere else it imports without
+complaint and fails on the first conversion, reporting a missing file that has
+nothing to do with the real cause.
+
+#### `rvc-python` — the older fallback
+
+The original backend. Slower, and awkward for a reason that is not its fault:
+
+> `rvc-python` pulls in `fairseq==0.12.2`, which fails to import on Python 3.11
+> and newer — `dataclasses` tightened its rules about mutable defaults. So this
+> one needs a **Python 3.10** interpreter, a third environment on the machine.
+
+```bash
+./scripts/install-rvc.sh                          # finds Python 3.10, builds .venv-rvc
+./scripts/install-rvc.sh --python /path/to/python3.10
+./scripts/install-rvc.sh --force                  # rebuild from scratch
+```
+
+`mise install python@3.10` or `pyenv install 3.10` will provide the interpreter,
+and the script says so if it cannot find one. It also pins `pip<24.1` and
+`setuptools<81` inside that environment — not out of caution but because
+`omegaconf 2.0.6` ships malformed metadata that newer pip rejects, and `pyworld`
+imports `pkg_resources`, which setuptools 81 removed. The reasoning is written
+down at the top of the script.
+
+One more trap lives here, and it is worth knowing because it fails *silently*:
+since PyTorch 2.6, `torch.load` defaults to `weights_only=True`, which refuses
+the `fairseq` objects inside the HuBERT checkpoint. `rvc-python` swallows the
+resulting error as a warning and returns a tuple instead of audio, so the
+conversion dies one line later on `'tuple' object has no attribute 'dtype'` and
+the assistant quietly reverts to plain Piper. The worker undoes that default
+**for its own process only** — see `zaufaj_lokalnym_checkpointom` in
+`scripts/rvc_worker.py`. Applio does not have this problem; it never loads a
+`fairseq` checkpoint.
+
+**On Windows** there is no equivalent script yet — do the same by hand:
+
+```powershell
+py -3.10 -m venv .venv-rvc
+.venv-rvc\Scripts\python -m pip install "pip<24.1" "setuptools<81" wheel
+.venv-rvc\Scripts\python -m pip install rvc-python
+```
+
+The assistant finds `.venv-rvc` on its own; `RVC_WORKER_PYTHON` overrides that
+if you keep the environment somewhere else. `RVC_BACKEND=rvc_python` and
+`RVC_BACKEND=subprocess` both select it — the package only ever runs in the
+separate environment, so the two names mean the same thing.
+
+**Or skip all of it** and point `RVC_BACKEND` at your own module — anything with
+one function:
+
+```python
+def create_backend(model_path, index_path, device):
+    """Return an object with .convert(samples, sample_rate, *, pitch_shift, index_rate)."""
+```
+
+`convert` receives mono `int16` and returns `(samples, sample_rate)` — it may
+return a different sample rate than it was given. That is the escape hatch: any
+RVC installation you already have can be plugged in without touching this code.
+
+**Switching it on** — `config/user_settings.json`:
+
+```json
+{
+  "voice_engine": "rvc_miku",
+  "piper_model": "pl_PL-gosia-medium",
+  "rvc": {
+    "enabled": true,
+    "model_path": "models/rvc/miku.pth",
+    "index_path": "models/rvc/miku.index",
+    "pitch_shift": 12,
+    "index_rate": 0.75
+  }
+}
+```
+
+Relative paths are resolved against the project directory and absolute ones are
+taken as they are; `~` and environment variables are expanded in the form your
+platform uses (`$HOME` on Linux, `%USERPROFILE%` on Windows). Keeping the model
+under `models/` and writing the path relative is what makes the same settings
+file work on both. `pitch_shift` is in semitones (`12` = one octave
+up, the usual starting point for a male Piper voice heading towards Miku);
+`index_rate` is how strongly the model leans on the index file (`0` = ignore it).
+
+**The mechanics** live in `.env`, because they are about the machine rather than
+about taste:
+
+```bash
+RVC_BACKEND=                 # empty = detect what is installed, prefer the fastest
+RVC_DEVICE=auto              # auto = CUDA if present, otherwise CPU
+RVC_CHUNK_MIN_MS=480         # how much audio to collect before converting
+RVC_CHUNK_MAX_MS=1500
+RVC_LATENCY_TARGET_MS=1000   # exceeding this is a WARNING in the log
+RVC_TIMEOUT_S=20             # a hung backend must not stop the assistant
+
+RVC_APPLIO_PATH=             # empty = look for third_party/Applio
+RVC_APPLIO_PYTHON=           # empty = look for .venv-applio
+RVC_F0_METHOD=rmvpe          # pitch detection: rmvpe | crepe | fcpe (the speed knob)
+RVC_EMBEDDER=contentvec      # speech-feature model used by Applio
+
+RVC_WORKER_PYTHON=           # rvc-python fallback: empty = look for .venv-rvc
+RVC_WORKER_START_S=120       # how long to wait for the separate process to load the model
+```
+
+`RVC_CHUNK_MIN_MS` is **the** latency knob. RVC needs a stretch of audio to work
+out pitch at all; converting Piper's 20 ms frames one by one sounds like
+gargling. Lower it and speech starts sooner and sounds worse; raise it and the
+opposite. 480 ms is a starting point, not a truth.
+
+**How one sentence travels:**
+
+```
+text → Piper (frames of ~20 ms) → buffer (~0.5 s) → RVC → playback queue → speaker
+```
+
+Nothing waits for the whole answer. The first fragment is already playing while
+Piper is still generating the rest of the sentence, and the playback queue is
+consumed by the sound card's own thread — so conversion of the next fragment
+does not wait for the previous one to finish playing.
+
+**Checking whether it actually works:**
+
+```bash
+python main.py --check-deps     # shows the model, the engine and the device
+python main.py --voice-test     # say a sentence in the target voice
+grep "first audio" logs/assistant.log
+```
+
+That last line is the point. Every utterance logs how long it took from text to
+the first sound, split into Piper's share and RVC's share:
+
+```
+Speech: first audio after 870 ms (engine rvc_miku, 61 characters)
+RVC: first audio after 862 ms (Piper 190 ms + RVC 672 ms, engine rvc_miku).
+```
+
+So "about a second" is a number you can check rather than an impression — and
+when it stops holding, the split says which link to blame.
+
+**When something is missing, the assistant talks anyway.** No model file, no
+engine installed, a load error, an exception mid-sentence, a conversion that
+overruns `RVC_TIMEOUT_S` — each of these writes an `[ERROR]` to
+`logs/assistant.log` and falls back to the plain Piper voice, mid-utterance if
+need be. Going quiet is treated as the worse failure, so it does not happen.
+
+**A failure of Applio is not the end of RVC.** With `RVC_BACKEND` empty the
+assistant keeps an ordered queue — Applio first, then `rvc-python` — and a
+failure of one moves it to the next. Two rules bound that:
+
+* **never mid-sentence.** Bringing up another backend means loading a model,
+  which costs seconds. The rest of the failing utterance is spoken by Piper,
+  and the switch happens at the next utterance, on a sentence boundary.
+* **each backend once.** When the queue runs out, it is plain Piper until
+  restart. Retrying would cost seconds of silence before every sentence, and
+  the causes (a missing file, GPU memory, an incompatible API) do not fix
+  themselves.
+
+So a session degrades at most twice, and each step is an `[ERROR]` in the log
+saying which backend is next and why the previous one went:
+
+```
+RVC: Piper for the rest of this utterance, then trying the subprocess backend — ...
+```
+
+An explicitly set `RVC_BACKEND` is **not** substituted. Asking for `applio`
+means asking for Applio, not for whatever happens to start — silently swapping
+the engine would change the timbre of the voice without being asked. Pin the
+backend and the only fallback is Piper.
+
 ---
 ## 6. Two layers of configuration
 
@@ -764,7 +1033,7 @@ This distinction runs through the whole project and is worth knowing up front.
 | `piper_model` | `""` | the voice name; empty = the first one found |
 | `piper_voices` | `{}` | a language → voice map |
 | `voice_speed` / `voice_volume` | `1.0` / `0.9` | rate and loudness |
-| `rvc.*` | disabled | voice conversion — **prepared, not working yet** (see [Limitations](#rvc-phase-15--not-working-yet)) |
+| `rvc.*` | disabled | the Miku voice via RVC — see [the RVC section](#rvc--the-miku-voice) |
 
 ### Three different "languages"
 
@@ -1612,21 +1881,32 @@ that sits in a data centre with a constant supply of training data.
 The practical conclusion: this works well for short, clear commands in a quiet
 room. It does not work well as a dictaphone for long texts in noise.
 
-### RVC (Phase 15) — not working yet
+### RVC (Phase 15) — latency is the price
 
-Voice conversion is **prepared in the configuration but not implemented**. The
-`rvc.*` fields in `config/user_settings.json` exist, are validated, and do
-nothing yet. When it does arrive, the following will apply:
+Voice conversion works, and none of the following goes away because it works:
 
 * **RVC adds latency to EVERY sentence**, because it is another model layered on
   top of Piper's output. Without a GPU that latency grows to the point where a
   live conversation stops being a conversation — the realistic order of magnitude
   is a few hundred milliseconds on a GPU against several seconds on a CPU, for
-  each sentence separately.
+  each sentence separately. `--check-deps` says which one you are on, and
+  `logs/assistant.log` says how much it is actually costing you.
 * Sentence-by-sentence streaming masks this partly (speech starts before the
-  answer ends) but does not shorten the time to the first sound.
+  answer ends) but does not shorten the time to the first sound. Neither does
+  lowering `RVC_CHUNK_MIN_MS` below roughly 200 ms — past that point the model
+  has too little audio to work out pitch, and the quality falls apart faster
+  than the latency does.
 * On a machine without a GPU the sensible answer is **not to enable RVC** and to
-  stay with Piper alone.
+  stay with Piper alone. The assistant will not stop you: it warns in the log
+  and carries on.
+* **No model and no RVC engine ship with this project.** Both are yours to
+  supply, the voice model is legally encumbered (see below), and the engine is
+  third-party code this project does not control. The tests cover the fallback
+  paths — they cannot cover the quality of a conversion they never run.
+* The `rvc-python` adapter is written **defensively against a moving API**: it
+  checks what the installed version actually exposes instead of assuming. A
+  version that has moved too far ends up as an `[ERROR]` and the Piper voice,
+  not as a crash — but it also ends up as no Miku voice.
 
 ### Security: deliberate trade-offs
 

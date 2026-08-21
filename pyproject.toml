@@ -11,6 +11,10 @@ addopts = "-q --strict-markers"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# `third_party/` to cudzy kod pobierany skryptem (klon Applio), nie nasz.
+# Bez tego `ruff check .` i `mypy .` raportowałyby cudze pliki, w których nie
+# wolno nam niczego zmieniać — a baseline projektu przestałby cokolwiek znaczyć.
+extend-exclude = ["third_party"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "PL", "RUF"]
@@ -21,6 +25,8 @@ python_version = "3.12"
 strict = true
 warn_unused_ignores = false
 ignore_missing_imports = true
+# Patrz komentarz przy `extend-exclude` ruffa — ten sam powód.
+exclude = ["^third_party/"]
 
 # CustomTkinter nie dostarcza typów, więc jego klasy są dla mypy `Any`, a tryb
 # strict zabrania dziedziczenia po `Any`. Wyjątek dotyczy WYŁĄCZNIE modułów z

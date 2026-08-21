@@ -28,6 +28,11 @@ models/
 *.safetensors
 *.ckpt
 
+# --- Cudzy kod pobierany skryptem (Applio), nie nasz i nie wersjonowany ---
+# Klon repozytorium Applio razem z jego wagami embeddera i predyktorów.
+# Pobiera je scripts/install-applio.sh; to setki MB cudzej własności.
+third_party/
+
 # --- Magazyn kół pip do instalacji bez internetu (duży, budowany lokalnie) ---
 vendor/
 *.db
@@ -60,6 +65,14 @@ dist/
 venv/
 .venv/
 env/
+# Osobne środowisko dla RVC (Faza 15): biblioteki RVC nie działają na Pythonie
+# nowszym niż 3.10, więc mieszkają obok, w drugim venvie. Kilka GB torcha
+# i ścieżki bezwzględne z tej maszyny — nigdy do repozytorium.
+.venv-rvc/
+# Środowisko Applio (szybszy backend RVC). Applio przypina torcha 2.11 i
+# wymaga Pythona 3.12+, więc nie mieści się ani w .venv, ani w .venv-rvc.
+# Około 7 GB samego torcha i bibliotek CUDA — nigdy do repozytorium.
+.venv-applio/
 ENV/
 
 # --- Pliki tymczasowe ---

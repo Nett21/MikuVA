@@ -9,6 +9,7 @@ mają sprawdzać kod, nie to, co akurat jest zainstalowane na maszynie.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
 import threading
@@ -933,7 +934,9 @@ def test_import_audio_tts_nie_wymaga_pipera() -> None:
     assert "piper" not in sys.modules or sys.modules["piper"] is not None
     import audio.tts
 
-    assert audio.tts.available_tts_engines() == ["none", "piper"]
+    # Zawieranie, nie równość: każdy kolejny silnik (rvc_miku z Fazy 15 i dalsze)
+    # dopisuje się do rejestru, a ten test pilnuje IMPORTU, nie długości listy.
+    assert {"none", "piper"} <= set(audio.tts.available_tts_engines())
 
 
 # --------------------------------------------------------------------------- #
@@ -1187,3 +1190,27 @@ def test_przerwana_odpowiedz_ucina_mowe(settings: Settings) -> None:
         )
 
     assert speaker.cancelled is True
+
+
+def test_opoznienie_do_pierwszego_dzwieku_trafia_do_logu(
+    settings: Settings, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Czas od zdania do pierwszego zapisu na wyjście — mierzony dla KAŻDEGO silnika.
+
+    Ten pomiar obejmuje cały łańcuch (synteza plus ewentualna konwersja barwy
+    z Fazy 15), więc siedzi tutaj, a nie w konkretnym dostawcy. Bez niego
+    „mowa startuje szybko" pozostaje wrażeniem.
+    """
+    provider = ScriptedProvider()
+    provider.release.set()
+    speech, sink = make_speech(settings, provider)
+
+    with caplog.at_level(logging.INFO, logger="audio.tts"):
+        speech.begin("pl")
+        speech.feed("Zdanie testowe. ")
+        speech.end(wait=True)
+    speech.close()
+
+    wpisy = [record.getMessage() for record in caplog.records]
+    assert sink.chunks, "nic nie trafiło na wyjście"
+    assert any("ms" in wpis and provider.name in wpis for wpis in wpisy), wpisy

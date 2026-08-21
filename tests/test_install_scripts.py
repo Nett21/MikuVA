@@ -142,7 +142,8 @@ def strip_comments(content: str) -> str:
 
 
 @pytest.mark.parametrize(
-    "name", [*UNIX_INSTALLERS, *POWERSHELL_INSTALLERS, "install-common.sh", "install.sh"]
+    "name",
+    [*UNIX_INSTALLERS, *POWERSHELL_INSTALLERS, "install-common.sh", "install.sh", "install-rvc.sh"],
 )
 def test_zaden_instalator_nie_wykonuje_pobranego_skryptu(name: str) -> None:
     """`curl | sh` uniemożliwia obejrzenie, co się wykona — nie robimy tego."""
@@ -1056,3 +1057,92 @@ def test_wykrywanie_sieci_nie_zaszywa_pypi_w_kodzie() -> None:
     content = (SCRIPTS_DIR / "install-common.sh").read_text(encoding="utf-8")
     fragment = content.split("has_network() {", 1)[1].split("\n}", 1)[0]
     assert "PIP_INDEX_URL" in fragment, "test sieci ignoruje skonfigurowane lustro"
+
+
+# --------------------------------------------------------------------------- #
+# scripts/install-rvc.sh (Faza 15)
+#
+# Osobny skrypt, bo osobny problem: buduje DRUGIE środowisko Pythona wyłącznie
+# dla RVC. Nie jest nakładką na install-common.sh i celowo nie ma go w
+# UNIX_INSTALLERS — nie instaluje asystenta, tylko dokłada do niego głos.
+# --------------------------------------------------------------------------- #
+
+RVC_INSTALLER = SCRIPTS_DIR / "install-rvc.sh"
+
+
+def test_install_rvc_ma_shebang_i_prawo_wykonania() -> None:
+    assert RVC_INSTALLER.read_text(encoding="utf-8").startswith("#!/usr/bin/env bash")
+    assert RVC_INSTALLER.stat().st_mode & stat.S_IXUSR
+
+
+def test_install_rvc_nie_potrzebuje_roota() -> None:
+    """Drugi venv powstaje w katalogu projektu — nic tu nie wymaga uprawnień.
+
+    Szukamy WYWOŁANIA sudo, nie samego słowa: skrypt ma prawo wypisać
+    podpowiedź „zainstaluj Pythona jako root", i to nie czyni z niego czegoś,
+    co samo sięga po uprawnienia.
+    """
+    kod = strip_comments(RVC_INSTALLER.read_text(encoding="utf-8"))
+    wywolania = [
+        line
+        for line in kod.splitlines()
+        if re.search(r"(^|[;&|(]\s*|\$\()\s*sudo\b", line)
+    ]
+    assert not wywolania, f"skrypt wywołuje sudo: {wywolania}"
+
+
+def test_install_rvc_nie_zaklada_wersji_po_nazwie_pliku() -> None:
+    """`python3.10` w PATH bywa dowiązaniem do czegoś innego — trzeba URUCHOMIĆ kandydata."""
+    kod = RVC_INSTALLER.read_text(encoding="utf-8")
+    assert "sys.version_info" in kod, "skrypt nie sprawdza wersji uruchomieniem interpretera"
+
+
+def test_install_rvc_tlumaczy_dlaczego_cofa_pipa() -> None:
+    """Przypięte wersje bez powodu to dług; z powodem w pliku — decyzja.
+
+    Powody są konkretne i sprawdzone: fairseq nie importuje się na 3.11+,
+    omegaconf 2.0.6 ma metadane odrzucane przez pip 24.1, pyworld potrzebuje
+    pkg_resources usuniętego w setuptools 81.
+    """
+    kod = RVC_INSTALLER.read_text(encoding="utf-8")
+    for powod in ("fairseq", "omegaconf", "pyworld", "pkg_resources"):
+        assert powod in kod, f"brak wyjaśnienia, czemu przypięto coś z powodu: {powod}"
+
+
+def test_install_rvc_pokazuje_pomoc_bez_dotykania_systemu() -> None:
+    wynik = subprocess.run(
+        ["bash", str(RVC_INSTALLER), "--help"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert wynik.returncode == 0
+    assert "install-rvc.sh" in wynik.stdout
+
+
+def test_install_rvc_odrzuca_zly_interpreter_z_jasnym_komunikatem(tmp_path: Path) -> None:
+    """Wskazanie Pythona w złej wersji ma się skończyć zdaniem, a nie stosem wywołań."""
+    wynik = subprocess.run(
+        ["bash", str(RVC_INSTALLER), "--python", sys.executable],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+        cwd=str(tmp_path),
+    )
+    wersja = f"{sys.version_info.major}.{sys.version_info.minor}"
+    if wersja == "3.10":  # pragma: no cover - CI na dokładnie tej wersji
+        pytest.skip("ten interpreter JEST wersją, której skrypt szuka")
+    assert wynik.returncode != 0
+    assert "3.10" in wynik.stdout
+    # Najważniejsze zdanie w całym skrypcie: brak RVC nie oznacza braku mowy.
+    assert "Pipera" in wynik.stdout
+
+
+def test_install_rvc_mowi_co_zostalo_do_zrobienia_recznie() -> None:
+    """Model i wpis w ustawieniach to dwie rzeczy, których skrypt zrobić nie może."""
+    kod = RVC_INSTALLER.read_text(encoding="utf-8")
+    assert "models/rvc/" in kod
+    assert "voice_engine" in kod
+    assert "--check-deps" in kod
