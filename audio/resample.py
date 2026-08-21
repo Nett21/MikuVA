@@ -10,6 +10,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+
 from i18n import t
 
 INT16_SCALE: float = 32768.0

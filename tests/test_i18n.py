@@ -204,3 +204,33 @@ def test_sprzeczne_flagi_koncza_sie_komunikatem(capsys: pytest.CaptureFixture[st
 
     assert main.main(["--gui", "--no-gui"]) == main.EXIT_CONFIG_ERROR
     assert t("cli.main.gui_conflict") in capsys.readouterr().out
+
+
+def test_zaden_klucz_nie_jest_zdefiniowany_dwa_razy() -> None:
+    """Powtórzony klucz w słowniku literalnym Pythona przechodzi BEZ ŚLADU.
+
+    Druga definicja po cichu nadpisuje pierwszą, a `len(_EN) == len(_PL)`
+    dalej się zgadza — więc test porównujący zestawy kluczy tego nie łapie.
+    Efektem jest komunikat, który w kodzie wygląda inaczej niż na ekranie.
+    Dlatego czytamy sam PLIK i liczymy wystąpienia.
+    """
+    import ast
+    import collections
+
+    from config import PROJECT_ROOT
+
+    drzewo = ast.parse((PROJECT_ROOT / "i18n.py").read_text(encoding="utf-8"))
+    duplikaty: dict[str, list[str]] = {}
+    for wezel in ast.walk(drzewo):
+        if not isinstance(wezel, ast.AnnAssign) or not isinstance(wezel.value, ast.Dict):
+            continue
+        if not isinstance(wezel.target, ast.Name) or wezel.target.id not in {"_EN", "_PL"}:
+            continue
+        klucze = [
+            k.value for k in wezel.value.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)
+        ]
+        powtorzone = [k for k, ile in collections.Counter(klucze).items() if ile > 1]
+        if powtorzone:
+            duplikaty[wezel.target.id] = sorted(powtorzone)
+
+    assert not duplikaty, f"klucze zdefiniowane więcej niż raz: {duplikaty}"

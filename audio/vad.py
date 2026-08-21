@@ -339,8 +339,8 @@ class UtteranceSegmenter:
 
 __all__ = [
     "EnergyVAD",
-    "UtteranceSegmenter",
     "Utterance",
+    "UtteranceSegmenter",
     "VADError",
     "VoiceActivityDetector",
     "WebRTCVAD",

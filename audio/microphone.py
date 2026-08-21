@@ -428,8 +428,8 @@ class Microphone:
     def _callback(
         self,
         indata: np.ndarray,
-        frames: int,  # noqa: ARG002 - sygnatura narzucona przez PortAudio
-        time_info: Any,  # noqa: ARG002 - sygnatura narzucona przez PortAudio
+        frames: int,
+        time_info: Any,
         status: Any,
     ) -> None:
         """Wywoływane przez PortAudio w jego własnym wątku — musi być krótkie."""
